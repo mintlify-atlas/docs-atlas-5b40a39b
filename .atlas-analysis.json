@@ -1,0 +1,230 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Talk to Figma MCP",
+  "projectDescription": "MCP integration between AI agents (Cursor, Claude Code) and Figma for reading and modifying designs programmatically",
+  "theme": "willow",
+  "primaryColor": "#7B61FF",
+  "lightColor": "#9B8AFF",
+  "darkColor": "#5B41DF",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/channels",
+              "concepts/websocket-relay"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/cursor-setup",
+              "guides/claude-setup",
+              "guides/figma-plugin",
+              "guides/windows-wsl",
+              "guides/local-development"
+            ]
+          },
+          {
+            "group": "Best Practices",
+            "pages": [
+              "best-practices/design-workflow",
+              "best-practices/text-operations",
+              "best-practices/annotations",
+              "best-practices/prototype-flows"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Document & Selection",
+            "pages": [
+              "api/document-selection/get-document-info",
+              "api/document-selection/get-selection",
+              "api/document-selection/read-my-design",
+              "api/document-selection/get-node-info",
+              "api/document-selection/get-nodes-info",
+              "api/document-selection/set-focus",
+              "api/document-selection/set-selections"
+            ]
+          },
+          {
+            "group": "Creating Elements",
+            "pages": [
+              "api/creating-elements/create-rectangle",
+              "api/creating-elements/create-frame",
+              "api/creating-elements/create-text"
+            ]
+          },
+          {
+            "group": "Text Operations",
+            "pages": [
+              "api/text-operations/scan-text-nodes",
+              "api/text-operations/set-text-content",
+              "api/text-operations/set-multiple-text-contents"
+            ]
+          },
+          {
+            "group": "Styling",
+            "pages": [
+              "api/styling/set-fill-color",
+              "api/styling/set-stroke-color",
+              "api/styling/set-corner-radius"
+            ]
+          },
+          {
+            "group": "Layout & Organization",
+            "pages": [
+              "api/layout-organization/move-node",
+              "api/layout-organization/resize-node",
+              "api/layout-organization/clone-node",
+              "api/layout-organization/delete-node",
+              "api/layout-organization/delete-multiple-nodes"
+            ]
+          },
+          {
+            "group": "Auto Layout",
+            "pages": [
+              "api/auto-layout/set-layout-mode",
+              "api/auto-layout/set-padding",
+              "api/auto-layout/set-axis-align",
+              "api/auto-layout/set-layout-sizing",
+              "api/auto-layout/set-item-spacing"
+            ]
+          },
+          {
+            "group": "Components & Styles",
+            "pages": [
+              "api/components-styles/get-styles",
+              "api/components-styles/get-local-components",
+              "api/components-styles/create-component-instance",
+              "api/components-styles/get-instance-overrides",
+              "api/components-styles/set-instance-overrides"
+            ]
+          },
+          {
+            "group": "Annotations",
+            "pages": [
+              "api/annotations/get-annotations",
+              "api/annotations/set-annotation",
+              "api/annotations/set-multiple-annotations",
+              "api/annotations/scan-nodes-by-types"
+            ]
+          },
+          {
+            "group": "Prototyping & Connections",
+            "pages": [
+              "api/prototyping-connections/get-reactions",
+              "api/prototyping-connections/set-default-connector",
+              "api/prototyping-connections/create-connections"
+            ]
+          },
+          {
+            "group": "Export",
+            "pages": [
+              "api/export/export-node-as-image"
+            ]
+          },
+          {
+            "group": "Connection Management",
+            "pages": [
+              "api/connection-management/join-channel"
+            ]
+          },
+          {
+            "group": "AI Prompts",
+            "pages": [
+              "api/prompts/design-strategy",
+              "api/prompts/read-design-strategy",
+              "api/prompts/text-replacement-strategy",
+              "api/prompts/annotation-conversion-strategy",
+              "api/prompts/swap-overrides-instances",
+              "api/prompts/reaction-to-connector-strategy"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Use Cases",
+            "pages": [
+              "examples/bulk-text-replacement",
+              "examples/instance-override-propagation",
+              "examples/annotation-conversion",
+              "examples/prototype-visualization"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "MCP protocol integration for AI agents",
+    "50+ Figma manipulation tools",
+    "WebSocket-based real-time communication",
+    "Channel-based multi-user support",
+    "Bulk operations with progress tracking",
+    "Auto-layout and component management",
+    "Annotation and prototype flow handling",
+    "Export functionality for designs"
+  ],
+  "publicApiSurface": [
+    "get_document_info",
+    "get_selection",
+    "read_my_design",
+    "get_node_info",
+    "get_nodes_info",
+    "create_rectangle",
+    "create_frame",
+    "create_text",
+    "set_fill_color",
+    "set_stroke_color",
+    "move_node",
+    "clone_node",
+    "resize_node",
+    "delete_node",
+    "delete_multiple_nodes",
+    "export_node_as_image",
+    "set_text_content",
+    "get_styles",
+    "get_local_components",
+    "get_annotations",
+    "set_annotation",
+    "set_multiple_annotations",
+    "create_component_instance",
+    "get_instance_overrides",
+    "set_instance_overrides",
+    "set_corner_radius",
+    "scan_text_nodes",
+    "scan_nodes_by_types",
+    "set_multiple_text_contents",
+    "set_layout_mode",
+    "set_padding",
+    "set_axis_align",
+    "set_layout_sizing",
+    "set_item_spacing",
+    "get_reactions",
+    "set_default_connector",
+    "create_connections",
+    "set_focus",
+    "set_selections",
+    "join_channel"
+  ]
+}
