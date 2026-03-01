@@ -1,0 +1,141 @@
+---
+title: 'create_component_instance'
+description: 'Create an instance of a component in Figma'
+---
+
+## Overview
+
+Creates a new instance of an existing component at the specified position. The component must exist in the current document.
+
+## Parameters
+
+<ParamField path="componentKey" type="string" required>
+  Key of the component to instantiate. Get this from [get_local_components](/api/components-styles/get-local-components)
+</ParamField>
+
+<ParamField path="x" type="number" required>
+  X position where the instance will be created
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position where the instance will be created
+</ParamField>
+
+## Response
+
+Returns information about the created instance:
+
+<ResponseField name="id" type="string">
+  Unique node identifier for the created instance
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Name of the instance (inherited from the component)
+</ResponseField>
+
+<ResponseField name="x" type="number">
+  X position of the instance
+</ResponseField>
+
+<ResponseField name="y" type="number">
+  Y position of the instance
+</ResponseField>
+
+<ResponseField name="componentKey" type="string">
+  Key of the main component this instance references
+</ResponseField>
+
+## Usage Example
+
+```typescript
+// First, get available components
+const components = await get_local_components();
+const buttonComponent = components.components.find(
+  c => c.name === "Button/Primary"
+);
+
+// Create an instance at position (100, 200)
+const instance = await create_component_instance({
+  componentKey: buttonComponent.key,
+  x: 100,
+  y: 200
+});
+
+console.log(instance);
+// {
+//   "id": "345:678",
+//   "name": "Button/Primary",
+//   "x": 100,
+//   "y": 200,
+//   "componentKey": "abc123def456"
+// }
+```
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Rapid Prototyping" icon="wand-magic-sparkles">
+    Quickly populate designs with component instances
+  </Card>
+  
+  <Card title="Batch Creation" icon="layer-group">
+    Create multiple instances programmatically for layouts
+  </Card>
+  
+  <Card title="Design Automation" icon="robot">
+    Automate repetitive instance placement tasks
+  </Card>
+  
+  <Card title="Template Generation" icon="file-invoice">
+    Generate templated screens with consistent components
+  </Card>
+</CardGroup>
+
+## Workflow
+
+<Steps>
+  <Step title="Get components">
+    Use [get_local_components](/api/components-styles/get-local-components) to find available components
+  </Step>
+  
+  <Step title="Create instance">
+    Call `create_component_instance` with the component key and position
+  </Step>
+  
+  <Step title="Customize instance (optional)">
+    Use [get_instance_overrides](/api/components-styles/get-instance-overrides) and [set_instance_overrides](/api/components-styles/set-instance-overrides) to apply customizations
+  </Step>
+</Steps>
+
+## Error Handling
+
+<Warning>
+  The component key must be valid and from a component in the current document. Using an invalid key will result in an error.
+</Warning>
+
+```typescript
+try {
+  const instance = await create_component_instance({
+    componentKey: "invalid-key",
+    x: 0,
+    y: 0
+  });
+} catch (error) {
+  console.error("Failed to create instance:", error.message);
+  // Error: Component with key 'invalid-key' not found
+}
+```
+
+## Notes
+
+- The created instance inherits all properties from the main component
+- Position is absolute on the current page
+- The instance can be modified after creation using other tools
+- Component must be from the current document (library components require different handling)
+
+## Related Tools
+
+- [get_local_components](/api/components-styles/get-local-components) - Get component keys needed for instance creation
+- [get_instance_overrides](/api/components-styles/get-instance-overrides) - Extract overrides from an instance
+- [set_instance_overrides](/api/components-styles/set-instance-overrides) - Apply overrides to instances
+- [clone_node](/api/layout-organization/clone-node) - Alternative way to duplicate existing instances

@@ -1,122 +1,190 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Talk to Figma MCP",
+  "theme": "willow",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#7B61FF",
+    "light": "#9B8AFF",
+    "dark": "#5B41DF"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/grab/cursor-talk-to-figma-mcp"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/grab/cursor-talk-to-figma-mcp"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/architecture",
+              "concepts/channels",
+              "concepts/websocket-relay"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/cursor-setup",
+              "guides/claude-setup",
+              "guides/figma-plugin",
+              "guides/windows-wsl",
+              "guides/local-development"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Best Practices",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "best-practices/design-workflow",
+              "best-practices/text-operations",
+              "best-practices/annotations",
+              "best-practices/prototype-flows"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Document & Selection",
             "pages": [
-              "api-reference/introduction"
+              "api/document-selection/get-document-info",
+              "api/document-selection/get-selection",
+              "api/document-selection/read-my-design",
+              "api/document-selection/get-node-info",
+              "api/document-selection/get-nodes-info",
+              "api/document-selection/set-focus",
+              "api/document-selection/set-selections"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Creating Elements",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/creating-elements/create-rectangle",
+              "api/creating-elements/create-frame",
+              "api/creating-elements/create-text"
+            ]
+          },
+          {
+            "group": "Text Operations",
+            "pages": [
+              "api/text-operations/scan-text-nodes",
+              "api/text-operations/set-text-content",
+              "api/text-operations/set-multiple-text-contents"
+            ]
+          },
+          {
+            "group": "Styling",
+            "pages": [
+              "api/styling/set-fill-color",
+              "api/styling/set-stroke-color",
+              "api/styling/set-corner-radius"
+            ]
+          },
+          {
+            "group": "Layout & Organization",
+            "pages": [
+              "api/layout-organization/move-node",
+              "api/layout-organization/resize-node",
+              "api/layout-organization/clone-node",
+              "api/layout-organization/delete-node",
+              "api/layout-organization/delete-multiple-nodes"
+            ]
+          },
+          {
+            "group": "Auto Layout",
+            "pages": [
+              "api/auto-layout/set-layout-mode",
+              "api/auto-layout/set-padding",
+              "api/auto-layout/set-axis-align",
+              "api/auto-layout/set-layout-sizing",
+              "api/auto-layout/set-item-spacing"
+            ]
+          },
+          {
+            "group": "Components & Styles",
+            "pages": [
+              "api/components-styles/get-styles",
+              "api/components-styles/get-local-components",
+              "api/components-styles/create-component-instance",
+              "api/components-styles/get-instance-overrides",
+              "api/components-styles/set-instance-overrides"
+            ]
+          },
+          {
+            "group": "Annotations",
+            "pages": [
+              "api/annotations/get-annotations",
+              "api/annotations/set-annotation",
+              "api/annotations/set-multiple-annotations",
+              "api/annotations/scan-nodes-by-types"
+            ]
+          },
+          {
+            "group": "Prototyping & Connections",
+            "pages": [
+              "api/prototyping-connections/get-reactions",
+              "api/prototyping-connections/set-default-connector",
+              "api/prototyping-connections/create-connections"
+            ]
+          },
+          {
+            "group": "Export",
+            "pages": [
+              "api/export/export-node-as-image"
+            ]
+          },
+          {
+            "group": "Connection Management",
+            "pages": [
+              "api/connection-management/join-channel"
+            ]
+          },
+          {
+            "group": "AI Prompts",
+            "pages": [
+              "api/prompts/design-strategy",
+              "api/prompts/read-design-strategy",
+              "api/prompts/text-replacement-strategy",
+              "api/prompts/annotation-conversion-strategy",
+              "api/prompts/swap-overrides-instances",
+              "api/prompts/reaction-to-connector-strategy"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Use Cases",
+            "pages": [
+              "examples/bulk-text-replacement",
+              "examples/instance-override-propagation",
+              "examples/annotation-conversion",
+              "examples/prototype-visualization"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

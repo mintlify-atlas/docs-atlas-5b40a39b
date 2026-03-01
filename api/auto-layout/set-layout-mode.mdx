@@ -1,0 +1,103 @@
+---
+title: set_layout_mode
+description: Set the layout mode and wrap behavior of a frame in Figma
+---
+
+## Overview
+
+Convert a regular frame into an auto-layout frame or change the direction of an existing auto-layout frame. You can set the layout to horizontal, vertical, or remove auto-layout entirely.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the frame to modify
+</ParamField>
+
+<ParamField path="layoutMode" type="enum" required>
+  Layout mode for the frame
+  
+  **Options:**
+  - `NONE` - Remove auto-layout from the frame
+  - `HORIZONTAL` - Arrange children left to right
+  - `VERTICAL` - Arrange children top to bottom
+</ParamField>
+
+<ParamField path="layoutWrap" type="enum">
+  Whether the auto-layout frame wraps its children
+  
+  **Options:**
+  - `NO_WRAP` - Children stay in a single row/column (default)
+  - `WRAP` - Children wrap to multiple rows/columns when space runs out
+</ParamField>
+
+## Response
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Set layout mode of frame \"Card Container\" to HORIZONTAL with WRAP"
+    }
+  ]
+}
+```
+
+## Examples
+
+### Convert to horizontal auto-layout
+
+```typescript
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_mode",
+  arguments: {
+    nodeId: "123:456",
+    layoutMode: "HORIZONTAL"
+  }
+});
+```
+
+### Create vertical list with wrapping
+
+```typescript
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_mode",
+  arguments: {
+    nodeId: "123:456",
+    layoutMode: "VERTICAL",
+    layoutWrap: "WRAP"
+  }
+});
+```
+
+### Remove auto-layout
+
+```typescript
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_mode",
+  arguments: {
+    nodeId: "123:456",
+    layoutMode: "NONE"
+  }
+});
+```
+
+## Use Cases
+
+**Navigation bars**: Use `HORIZONTAL` layout mode to arrange menu items in a row
+
+**Card grids**: Combine `HORIZONTAL` layout with `WRAP` to create responsive card layouts
+
+**Form fields**: Use `VERTICAL` layout mode to stack labels and inputs
+
+**Button groups**: Use `HORIZONTAL` layout to arrange action buttons side by side
+
+## Related Tools
+
+- [set_item_spacing](/api/auto-layout/set-item-spacing) - Control spacing between children
+- [set_padding](/api/auto-layout/set-padding) - Add padding around children
+- [set_axis_align](/api/auto-layout/set-axis-align) - Control child alignment
+- [create_frame](/api/shapes/create-frame) - Create frames with auto-layout from the start

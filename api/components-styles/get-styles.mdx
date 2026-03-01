@@ -1,0 +1,94 @@
+---
+title: 'get_styles'
+description: 'Get all styles from the current Figma document'
+---
+
+## Overview
+
+Retrieves all local styles defined in the current Figma document, including color styles, text styles, effect styles, and grid styles.
+
+## Parameters
+
+This tool takes no parameters.
+
+## Response
+
+Returns a JSON object containing all styles in the document:
+
+<ResponseField name="styles" type="array">
+  Array of style objects from the Figma document
+  
+  <Expandable title="style properties">
+    <ResponseField name="id" type="string">
+      Unique identifier for the style
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Name of the style as shown in Figma
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Type of style (FILL, TEXT, EFFECT, or GRID)
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Optional description of the style
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Usage Example
+
+```typescript
+// Get all styles from the document
+const result = await get_styles();
+
+console.log(result);
+// {
+//   "styles": [
+//     {
+//       "id": "S:abc123",
+//       "name": "Primary/Blue",
+//       "type": "FILL",
+//       "description": "Primary brand color"
+//     },
+//     {
+//       "id": "S:def456",
+//       "name": "Heading/Large",
+//       "type": "TEXT",
+//       "description": "Large heading style"
+//     }
+//   ]
+// }
+```
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Style Audit" icon="list-check">
+    List all styles in a document to audit consistency and organization
+  </Card>
+  
+  <Card title="Style Documentation" icon="book">
+    Generate documentation of available design tokens and styles
+  </Card>
+  
+  <Card title="Design System Analysis" icon="chart-simple">
+    Analyze style usage patterns across your design system
+  </Card>
+  
+  <Card title="Migration Planning" icon="arrows-turn-right">
+    Identify styles that need to be migrated or updated
+  </Card>
+</CardGroup>
+
+## Notes
+
+- This tool only returns local styles defined in the current document
+- Remote/library styles from other files are not included
+- The response includes all style types: fill, text, effect, and grid styles
+
+## Related Tools
+
+- [get_local_components](/api/components-styles/get-local-components) - Get local components from the document
+- [get_node_info](/api/document-selection/get-node-info) - Get detailed information about a specific node

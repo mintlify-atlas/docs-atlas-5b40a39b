@@ -1,0 +1,259 @@
+---
+title: "Design Workflow Best Practices"
+description: "Best practices for working with Figma designs using Talk to Figma MCP"
+---
+
+## Starting Your Workflow
+
+When working with Figma designs through the MCP server, following these practices ensures efficient and error-free operations.
+
+### Initial Setup
+
+Always begin by establishing context before making any modifications:
+
+1. **Join a channel** using `join_channel` before any other operations
+2. **Get document overview** with `get_document_info` to understand the structure
+3. **Check current selection** using `get_selection` or `read_my_design` before modifications
+
+```typescript
+// Example workflow start
+await join_channel({ channelName: "design-session" });
+const docInfo = await get_document_info();
+const selection = await get_selection();
+```
+
+<Tip>
+Use `read_my_design` when you need detailed node information without specifying node IDs. It provides comprehensive data about your current selection.
+</Tip>
+
+## Document Structure and Hierarchy
+
+### Planning Layout Hierarchy
+
+Before creating elements, plan your layout structure:
+
+- Start with main container frames for each screen or section
+- Create parent frames first, then add child elements
+- Use `parentId` parameter to maintain proper hierarchy
+
+### Naming Conventions
+
+Consistent naming improves collaboration and code maintenance:
+
+- Use descriptive, semantic names (e.g., "Login Screen", "Logo Container", "Email Input")
+- Follow a consistent pattern across your design system
+- Group related elements with meaningful names
+
+<Note>
+Descriptive names make it easier to identify nodes when using tools like `scan_text_nodes` or `scan_nodes_by_types`.
+</Note>
+
+## Element Creation
+
+### Choosing the Right Tool
+
+Select appropriate creation tools based on your needs:
+
+- **`create_frame`** - For containers, auto-layout groups, and input field backgrounds
+- **`create_rectangle`** - For basic shapes and visual elements
+- **`create_text`** - For labels, button text, and content
+
+### Common Design Patterns
+
+#### Form/Login Screen Structure
+
+```typescript
+// Recommended hierarchy
+- Login Screen (main frame)
+  - Logo Container (frame)
+    - Logo (text/component)
+  - Welcome Text (text)
+  - Input Container (frame)
+    - Email Input (frame)
+      - Email Label (text)
+      - Email Field (frame)
+    - Password Input (frame)
+      - Password Label (text)
+      - Password Field (frame)
+  - Login Button (frame)
+    - Button Text (text)
+  - Helper Links (frame)
+    - Forgot Password (text)
+    - Signup Link (text)
+```
+
+#### Input Fields Pattern
+
+- Create a container frame for each input field
+- Include a label text above or inside the input
+- Group related inputs together (e.g., username/password)
+
+## Styling Best Practices
+
+### Color Management
+
+<Warning>
+Figma uses RGBA values in the 0-1 range, not 0-255. Always convert your colors:
+- RGB(255, 0, 0) becomes `{r: 1, g: 0, b: 0, a: 1}`
+</Warning>
+
+```typescript
+// Setting fill color
+await set_fill_color({
+  nodeId: "node-id",
+  r: 0.2,  // 51 in 0-255 range
+  g: 0.4,  // 102 in 0-255 range
+  b: 0.6,  // 153 in 0-255 range
+  a: 1.0
+});
+```
+
+### Visual Hierarchy
+
+Maintain clear visual hierarchy through:
+
+- **Position**: Arrange elements in logical reading order (top to bottom)
+- **Spacing**: Use consistent spacing between elements
+- **Typography**: Apply appropriate font sizes for different text types
+  - Larger for headings/welcome text
+  - Medium for input labels
+  - Standard for button text
+  - Smaller for helper text/links
+
+## Verification and Error Handling
+
+### Verify Changes
+
+After creating or modifying elements:
+
+```typescript
+// Create element
+const result = await create_frame({
+  x: 100, y: 100,
+  width: 300, height: 400,
+  name: "Container"
+});
+
+// Verify creation
+const nodeInfo = await get_node_info({ nodeId: result.id });
+```
+
+### Error Handling
+
+<Note>
+All MCP commands can throw exceptions. Always implement appropriate error handling in your workflows.
+</Note>
+
+- Handle WebSocket disconnections gracefully
+- Verify node existence before operations
+- Use batch operations to minimize error points
+
+## Component Usage
+
+### Working with Components
+
+- Use `get_local_components` to discover available components
+- Create instances with `create_component_instance` for consistency
+- Leverage component instances instead of duplicating designs
+
+```typescript
+// Get available components
+const components = await get_local_components();
+
+// Create instance
+await create_component_instance({
+  componentKey: components[0].key,
+  x: 100,
+  y: 100
+});
+```
+
+### Instance Overrides
+
+When working with component instances:
+
+1. Use `get_instance_overrides` to extract customizations
+2. Apply overrides with `set_instance_overrides` for batch updates
+3. Preserve component relationships rather than breaking instances
+
+<Tip>
+Batch operations like `set_instance_overrides` are more efficient than individual updates and maintain design system integrity.
+</Tip>
+
+## Performance Optimization
+
+### Use Batch Operations
+
+When working with multiple nodes, always prefer batch operations:
+
+- `set_multiple_text_contents` instead of multiple `set_text_content` calls
+- `delete_multiple_nodes` instead of individual `delete_node` calls
+- `set_multiple_annotations` instead of repeated `set_annotation` calls
+
+### Large Design Considerations
+
+For designs with many elements:
+
+- Use chunking parameters in `scan_text_nodes`
+- Monitor progress through WebSocket updates
+- Process in logical groups to avoid timeouts (default 30s)
+
+```typescript
+// Scan with chunking for large designs
+await scan_text_nodes({
+  nodeId: "large-frame-id",
+  useChunking: true,
+  chunkSize: 10
+});
+```
+
+## Auto Layout Best Practices
+
+### Setting Up Auto Layout
+
+When creating frames with auto layout:
+
+1. Set `layoutMode` (HORIZONTAL, VERTICAL, or NONE)
+2. Configure padding with `set_padding`
+3. Set alignment with `set_axis_align`
+4. Configure sizing with `set_layout_sizing`
+5. Set spacing with `set_item_spacing`
+
+<Note>
+When `primaryAxisAlignItems` is set to `SPACE_BETWEEN`, the `itemSpacing` value is ignored as children are evenly distributed.
+</Note>
+
+### Layout Modes
+
+- **HORIZONTAL** - For rows, navigation bars, button groups
+- **VERTICAL** - For columns, form fields, card stacks
+- **NONE** - For free-form positioning
+
+## Selection and Focus
+
+### Managing Selection
+
+- Use `set_focus` to select and scroll to a specific node
+- Use `set_selections` to select multiple nodes at once
+- Always verify selection before batch operations
+
+```typescript
+// Focus on specific element
+await set_focus({ nodeId: "important-node-id" });
+
+// Select multiple nodes
+await set_selections({ nodeIds: ["id1", "id2", "id3"] });
+```
+
+## Workflow Checklist
+
+- [ ] Join channel before operations
+- [ ] Get document info for context
+- [ ] Check current selection
+- [ ] Plan hierarchy before creating elements
+- [ ] Use descriptive, consistent names
+- [ ] Choose appropriate creation tools
+- [ ] Verify changes with `get_node_info`
+- [ ] Use batch operations when possible
+- [ ] Implement error handling
+- [ ] Leverage components for consistency

@@ -1,0 +1,268 @@
+---
+title: create_frame
+description: Create a new frame in Figma
+---
+
+## Overview
+
+Create a new frame in Figma with specified position, size, and extensive styling and layout options. Frames are container elements that can hold other elements and support auto-layout properties.
+
+## Parameters
+
+### Position & Size
+
+<ParamField path="x" type="number" required>
+  X position of the frame
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position of the frame
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  Width of the frame
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  Height of the frame
+</ParamField>
+
+### Basic Properties
+
+<ParamField path="name" type="string">
+  Optional name for the frame. Defaults to "Frame" if not provided.
+</ParamField>
+
+<ParamField path="parentId" type="string">
+  Optional parent node ID to append the frame to. If not provided, the frame is created in the current selection or page.
+</ParamField>
+
+### Fill & Stroke
+
+<ParamField path="fillColor" type="object">
+  Fill color in RGBA format. Defaults to white `{r: 1, g: 1, b: 1, a: 1}` if not provided.
+  
+  Properties:
+  - `r` (number, 0-1): Red component
+  - `g` (number, 0-1): Green component
+  - `b` (number, 0-1): Blue component
+  - `a` (number, 0-1, optional): Alpha/opacity component
+</ParamField>
+
+<ParamField path="strokeColor" type="object">
+  Stroke color in RGBA format. Optional.
+  
+  Properties:
+  - `r` (number, 0-1): Red component
+  - `g` (number, 0-1): Green component
+  - `b` (number, 0-1): Blue component
+  - `a` (number, 0-1, optional): Alpha/opacity component
+</ParamField>
+
+<ParamField path="strokeWeight" type="number">
+  Stroke weight (border thickness) in pixels. Must be positive.
+</ParamField>
+
+### Auto-Layout Properties
+
+<ParamField path="layoutMode" type="enum">
+  Auto-layout mode for the frame.
+  
+  Options: `"NONE"`, `"HORIZONTAL"`, `"VERTICAL"`
+</ParamField>
+
+<ParamField path="layoutWrap" type="enum">
+  Whether the auto-layout frame wraps its children.
+  
+  Options: `"NO_WRAP"`, `"WRAP"`
+</ParamField>
+
+<ParamField path="paddingTop" type="number">
+  Top padding for auto-layout frame in pixels.
+</ParamField>
+
+<ParamField path="paddingRight" type="number">
+  Right padding for auto-layout frame in pixels.
+</ParamField>
+
+<ParamField path="paddingBottom" type="number">
+  Bottom padding for auto-layout frame in pixels.
+</ParamField>
+
+<ParamField path="paddingLeft" type="number">
+  Left padding for auto-layout frame in pixels.
+</ParamField>
+
+<ParamField path="primaryAxisAlignItems" type="enum">
+  Primary axis alignment for auto-layout frame.
+  
+  Options: `"MIN"`, `"MAX"`, `"CENTER"`, `"SPACE_BETWEEN"`
+  
+  **Note:** When set to `SPACE_BETWEEN`, `itemSpacing` will be ignored as children will be evenly spaced.
+</ParamField>
+
+<ParamField path="counterAxisAlignItems" type="enum">
+  Counter axis alignment for auto-layout frame.
+  
+  Options: `"MIN"`, `"MAX"`, `"CENTER"`, `"BASELINE"`
+</ParamField>
+
+<ParamField path="layoutSizingHorizontal" type="enum">
+  Horizontal sizing mode for auto-layout frame.
+  
+  Options: `"FIXED"`, `"HUG"`, `"FILL"`
+</ParamField>
+
+<ParamField path="layoutSizingVertical" type="enum">
+  Vertical sizing mode for auto-layout frame.
+  
+  Options: `"FIXED"`, `"HUG"`, `"FILL"`
+</ParamField>
+
+<ParamField path="itemSpacing" type="number">
+  Distance between children in auto-layout frame in pixels.
+  
+  **Note:** This value will be ignored if `primaryAxisAlignItems` is set to `SPACE_BETWEEN`.
+</ParamField>
+
+## Return Type
+
+Returns an object with:
+- `name` (string): The name of the created frame
+- `id` (string): The unique ID of the created frame (use this as `parentId` to add children)
+
+## Usage Examples
+
+### Basic Frame
+
+Create a simple frame with default white background:
+
+```typescript
+await mcp.callTool("create_frame", {
+  x: 100,
+  y: 100,
+  width: 400,
+  height: 300,
+  name: "Card Container"
+});
+```
+
+### Frame with Custom Fill Color
+
+Create a frame with a blue background:
+
+```typescript
+await mcp.callTool("create_frame", {
+  x: 0,
+  y: 0,
+  width: 375,
+  height: 812,
+  name: "Mobile Screen",
+  fillColor: {
+    r: 0.9,
+    g: 0.95,
+    b: 1,
+    a: 1
+  }
+});
+```
+
+### Frame with Border
+
+Create a frame with stroke (border):
+
+```typescript
+await mcp.callTool("create_frame", {
+  x: 50,
+  y: 50,
+  width: 300,
+  height: 200,
+  name: "Bordered Card",
+  fillColor: { r: 1, g: 1, b: 1, a: 1 },
+  strokeColor: { r: 0.8, g: 0.8, b: 0.8, a: 1 },
+  strokeWeight: 2
+});
+```
+
+### Vertical Auto-Layout Frame
+
+Create a frame with vertical auto-layout:
+
+```typescript
+const container = await mcp.callTool("create_frame", {
+  x: 100,
+  y: 100,
+  width: 320,
+  height: 400,
+  name: "Form Container",
+  layoutMode: "VERTICAL",
+  itemSpacing: 16,
+  paddingTop: 24,
+  paddingRight: 24,
+  paddingBottom: 24,
+  paddingLeft: 24,
+  primaryAxisAlignItems: "MIN",
+  counterAxisAlignItems: "MIN"
+});
+```
+
+### Horizontal Auto-Layout Frame with Space Between
+
+Create a horizontal frame with space-between alignment:
+
+```typescript
+await mcp.callTool("create_frame", {
+  x: 0,
+  y: 0,
+  width: 600,
+  height: 60,
+  name: "Header",
+  layoutMode: "HORIZONTAL",
+  primaryAxisAlignItems: "SPACE_BETWEEN",
+  counterAxisAlignItems: "CENTER",
+  paddingLeft: 20,
+  paddingRight: 20,
+  fillColor: { r: 0.2, g: 0.2, b: 0.2, a: 1 }
+});
+```
+
+### Nested Frames
+
+Create a frame hierarchy by using the parent's ID:
+
+```typescript
+// Create parent frame
+const parent = await mcp.callTool("create_frame", {
+  x: 0,
+  y: 0,
+  width: 500,
+  height: 400,
+  name: "Parent Container",
+  layoutMode: "VERTICAL",
+  itemSpacing: 12,
+  paddingTop: 20,
+  paddingRight: 20,
+  paddingBottom: 20,
+  paddingLeft: 20
+});
+
+// Create child frame inside parent
+await mcp.callTool("create_frame", {
+  x: 0,
+  y: 0,
+  width: 460,
+  height: 100,
+  name: "Child Card",
+  parentId: parent.id,
+  fillColor: { r: 0.95, g: 0.95, b: 0.95, a: 1 }
+});
+```
+
+## Notes
+
+- Frames are the primary container type in Figma and support auto-layout
+- Use the returned `id` as `parentId` when creating child elements
+- Colors use RGBA format with values between 0 and 1 (not 0-255)
+- When `primaryAxisAlignItems` is set to `SPACE_BETWEEN`, the `itemSpacing` property is ignored
+- Auto-layout properties only take effect when `layoutMode` is set to `HORIZONTAL` or `VERTICAL`
+- The frame is created at the specified coordinates relative to its parent (if `parentId` is provided)

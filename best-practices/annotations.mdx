@@ -1,0 +1,535 @@
+---
+title: "Working with Annotations"
+description: "Best practices for converting and managing Figma annotations"
+---
+
+## Annotation System Overview
+
+Figma's native annotation system allows you to attach notes, comments, and documentation directly to design elements. The Talk to Figma MCP provides tools to work with annotations programmatically.
+
+### Available Annotation Tools
+
+- `get_annotations` - Retrieve all annotations in a document or node
+- `set_annotation` - Create or update a single annotation
+- `set_multiple_annotations` - Batch create/update annotations efficiently
+- `scan_nodes_by_types` - Find potential annotation targets
+
+## Converting Manual Annotations
+
+Many designs use manual annotation systems (numbered markers with text descriptions). Converting these to native Figma annotations improves collaboration and maintains design system integrity.
+
+### Process Overview
+
+1. Get selection and initial setup
+2. Scan annotation text nodes
+3. Scan target UI elements
+4. Match annotations to targets
+5. Apply native Figma annotations
+6. Verify and clean up
+
+## Step 1: Initial Setup
+
+### Get Selection
+
+Start by identifying the frame or component containing annotations:
+
+```typescript
+// Get current selection
+const selection = await get_selection();
+const selectedNodeId = selection[0].id;
+
+// Get available annotation categories
+const annotationData = await get_annotations({
+  nodeId: selectedNodeId,
+  includeCategories: true
+});
+const categories = annotationData.categories;
+```
+
+<Tip>
+Figma provides default annotation categories. Understanding available categories helps you classify annotations appropriately.
+</Tip>
+
+## Step 2: Scan Annotation Text Nodes
+
+### Identify Markers and Descriptions
+
+Scan all text nodes to find annotation components:
+
+```typescript
+// Get all text nodes
+const textNodes = await scan_text_nodes({
+  nodeId: selectedNodeId
+});
+
+// Filter for markers and descriptions
+// Markers typically have:
+// - Short text content (single digit/letter)
+// - Specific font styles (often bold)
+// - Container with "Marker" or "Dot" in name
+// - Clear naming pattern ("1", "2", "3" or "A", "B", "C")
+```
+
+### Common Marker Patterns
+
+Markers are usually identified by:
+
+- **Text content**: Single character or number ("1", "A", "①")
+- **Container names**: "Marker", "Annotation", "Dot", "Number"
+- **Font weight**: Often bold (700+)
+- **Size**: Typically smaller than body text
+
+### Description Patterns
+
+Descriptions typically have:
+
+- Longer text content
+- Located near markers
+- Matching numbers in layer path
+- Explanatory content
+
+<Note>
+Manual annotation systems vary widely. Analyze your specific design pattern to identify the correct matching logic.
+</Note>
+
+## Step 3: Scan Target UI Elements
+
+### Find Annotation Targets
+
+Identify UI elements that annotations refer to:
+
+```typescript
+// Scan for potential target elements
+const targetNodes = await scan_nodes_by_types({
+  nodeId: selectedNodeId,
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+```
+
+<Tip>
+Native Figma annotations can be attached to COMPONENT, INSTANCE, and FRAME nodes. Scan for these types to find valid targets.
+</Tip>
+
+### Target Node Types
+
+- **COMPONENT** - Main component definitions
+- **INSTANCE** - Component instances
+- **FRAME** - Frame containers
+
+Other node types (TEXT, RECTANGLE, etc.) cannot receive native annotations directly.
+
+## Step 4: Match Annotations to Targets
+
+### Matching Strategies
+
+Use multiple strategies in order of priority:
+
+#### 1. Path-Based Matching (Highest Priority)
+
+Match based on layer hierarchy:
+
+```typescript
+// Look at marker's parent container name
+// Remove "Marker:" or "Annotation:" prefixes
+// Find UI elements with matching parent names
+
+function findTargetByPath(marker, targetNodes) {
+  // Get marker's parent path
+  const parentName = marker.parent.name
+    .replace(/^(Marker:|Annotation:)\s*/i, '');
+  
+  // Find targets with matching parent
+  return targetNodes.find(node => 
+    node.parent?.name === parentName ||
+    node.name === parentName
+  );
+}
+```
+
+**When to use:**
+- Markers are grouped with their target elements
+- Layer hierarchy follows naming conventions
+- Annotations are organized in frames
+
+#### 2. Name-Based Matching
+
+Match based on description content:
+
+```typescript
+function findTargetByName(description, targetNodes) {
+  // Extract key terms from description
+  const keywords = extractKeywords(description.text);
+  
+  // Find nodes whose names contain keywords
+  return targetNodes.find(node =>
+    keywords.some(keyword => 
+      node.name.toLowerCase().includes(keyword.toLowerCase())
+    )
+  );
+}
+```
+
+**When to use:**
+- Descriptions mention specific element names
+- Form fields, buttons, and labeled components
+- Semantic naming conventions are followed
+
+#### 3. Proximity-Based Matching (Fallback)
+
+Match based on spatial position:
+
+```typescript
+function findTargetByProximity(marker, targetNodes) {
+  const markerCenter = {
+    x: marker.x + marker.width / 2,
+    y: marker.y + marker.height / 2
+  };
+  
+  // Find closest element
+  let closest = null;
+  let minDistance = Infinity;
+  
+  for (const node of targetNodes) {
+    const nodeCenter = {
+      x: node.x + node.width / 2,
+      y: node.y + node.height / 2
+    };
+    
+    const distance = Math.sqrt(
+      Math.pow(nodeCenter.x - markerCenter.x, 2) +
+      Math.pow(nodeCenter.y - markerCenter.y, 2)
+    );
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = node;
+    }
+  }
+  
+  return closest;
+}
+```
+
+**When to use:**
+- Other strategies fail
+- Markers positioned near their targets
+- Simple spatial layouts
+
+<Warning>
+Proximity-based matching can be inaccurate in dense layouts. Always verify results when using this strategy.
+</Warning>
+
+### Combined Matching Strategy
+
+```typescript
+function findBestTarget(marker, description, targetNodes) {
+  // Try strategies in priority order
+  let target = findTargetByPath(marker, targetNodes);
+  
+  if (!target) {
+    target = findTargetByName(description, targetNodes);
+  }
+  
+  if (!target) {
+    target = findTargetByProximity(marker, targetNodes);
+  }
+  
+  return target;
+}
+```
+
+## Step 5: Apply Native Annotations
+
+### Determine Category
+
+Classify annotations based on content:
+
+```typescript
+function determineCategory(descriptionText, categories) {
+  const text = descriptionText.toLowerCase();
+  
+  // Pattern matching for categories
+  if (text.includes('bug') || text.includes('fix')) {
+    return categories.find(c => c.name === 'Bug');
+  }
+  
+  if (text.includes('todo') || text.includes('implement')) {
+    return categories.find(c => c.name === 'To Do');
+  }
+  
+  if (text.includes('note') || text.includes('info')) {
+    return categories.find(c => c.name === 'Note');
+  }
+  
+  // Default category
+  return categories[0];
+}
+```
+
+### Batch Create Annotations
+
+Use `set_multiple_annotations` for efficiency:
+
+```typescript
+// Prepare annotations array
+const annotationsToApply = matchedPairs.map(({ marker, description, target }) => {
+  const category = determineCategory(description.text, categories);
+  
+  return {
+    nodeId: target.id,
+    labelMarkdown: description.text,
+    categoryId: category.id,
+    properties: determineProperties(description.text, target.type)
+  };
+}).filter(Boolean); // Remove null entries
+
+// Apply in batch
+if (annotationsToApply.length > 0) {
+  await set_multiple_annotations({
+    nodeId: selectedNodeId,
+    annotations: annotationsToApply
+  });
+}
+```
+
+<Tip>
+Batch operations are significantly more efficient than creating annotations one at a time. Always use `set_multiple_annotations` when possible.
+</Tip>
+
+### Annotation Properties
+
+Determine additional properties based on context:
+
+```typescript
+function determineProperties(descriptionText, targetType) {
+  const properties = {};
+  
+  // Add priority if mentioned
+  if (descriptionText.includes('critical') || descriptionText.includes('urgent')) {
+    properties.priority = 'high';
+  }
+  
+  // Add assignee if mentioned
+  const assigneeMatch = descriptionText.match(/@(\w+)/);
+  if (assigneeMatch) {
+    properties.assignee = assigneeMatch[1];
+  }
+  
+  return properties;
+}
+```
+
+## Step 6: Verify and Clean Up
+
+### Verify Annotations
+
+Check that annotations were created correctly:
+
+```typescript
+// Get all annotations to verify
+const verifyData = await get_annotations({
+  nodeId: selectedNodeId
+});
+
+console.log(`Created ${verifyData.annotations.length} annotations`);
+```
+
+### Delete Legacy Markers
+
+After successful conversion, remove manual annotation nodes:
+
+```typescript
+// Collect marker and description node IDs
+const nodesToDelete = [
+  ...markerNodeIds,
+  ...descriptionNodeIds
+];
+
+// Delete in batch
+await delete_multiple_nodes({
+  nodeIds: nodesToDelete
+});
+```
+
+<Warning>
+Only delete manual annotations after verifying native annotations were created successfully. Always create a backup first.
+</Warning>
+
+## Single Annotation Creation
+
+For individual annotations, use `set_annotation`:
+
+```typescript
+await set_annotation({
+  nodeId: "target-node-id",
+  labelMarkdown: "This button triggers the login action",
+  categoryId: "category-id" // Optional
+});
+```
+
+### Markdown Support
+
+Annotation labels support markdown formatting:
+
+```typescript
+await set_annotation({
+  nodeId: "node-id",
+  labelMarkdown: `
+**Important:** This component handles authentication.
+
+- Validates user credentials
+- Shows error messages
+- Redirects on success
+
+See [documentation](https://example.com) for details.
+  `.trim()
+});
+```
+
+<Tip>
+Use markdown formatting to create rich, informative annotations with headings, lists, links, and emphasis.
+</Tip>
+
+## Retrieving Annotations
+
+### Get All Annotations
+
+```typescript
+// Get annotations for specific node
+const annotations = await get_annotations({
+  nodeId: "frame-id"
+});
+
+// Get with categories
+const fullData = await get_annotations({
+  nodeId: "frame-id",
+  includeCategories: true
+});
+```
+
+### Filter by Category
+
+```typescript
+const annotations = await get_annotations({ nodeId: "frame-id" });
+
+// Filter specific category
+const bugs = annotations.annotations.filter(
+  a => a.categoryId === bugCategoryId
+);
+```
+
+## Best Practices
+
+### Organization
+
+- Create annotations at the appropriate hierarchy level
+- Use consistent category assignment logic
+- Group related annotations together
+- Use descriptive, actionable text
+
+### Content Guidelines
+
+- Write clear, concise annotation text
+- Include context and reasoning
+- Link to relevant documentation
+- Mention stakeholders when appropriate (using @mentions)
+- Add priority indicators for critical items
+
+### Performance
+
+- Use `set_multiple_annotations` for batch operations
+- Limit annotation count per frame (aim for < 20)
+- Clean up resolved annotations regularly
+- Use categories to organize large annotation sets
+
+<Note>
+Too many annotations can clutter the design view. Focus on actionable, relevant annotations.
+</Note>
+
+## Common Use Cases
+
+### Design Review Annotations
+
+```typescript
+// Add review comments
+await set_multiple_annotations({
+  nodeId: "screen-id",
+  annotations: [
+    {
+      nodeId: "button-id",
+      labelMarkdown: "**Accessibility:** Add ARIA label for screen readers",
+      categoryId: a11yCategoryId
+    },
+    {
+      nodeId: "image-id",
+      labelMarkdown: "Replace with high-res asset @designer",
+      categoryId: todoCategoryId
+    }
+  ]
+});
+```
+
+### Development Handoff
+
+```typescript
+// Add implementation notes
+await set_annotation({
+  nodeId: "component-id",
+  labelMarkdown: `
+## Implementation Notes
+
+- Use \`LoginButton\` component
+- Connect to \`/api/auth/login\` endpoint
+- Handle loading and error states
+- Validate email format before submission
+  `.trim()
+});
+```
+
+### QA Bug Tracking
+
+```typescript
+// Document bugs found in design
+await set_multiple_annotations({
+  nodeId: "page-id",
+  annotations: foundBugs.map(bug => ({
+    nodeId: bug.elementId,
+    labelMarkdown: `**Bug ${bug.id}:** ${bug.description}\n\nSteps to reproduce:\n${bug.steps}`,
+    categoryId: bugCategoryId
+  }))
+});
+```
+
+## Troubleshooting
+
+### Annotation Not Appearing
+
+- Verify target node type (must be COMPONENT, INSTANCE, or FRAME)
+- Check node ID is correct
+- Ensure node is not deleted or removed
+- Verify WebSocket connection is active
+
+### Wrong Target Element
+
+- Review matching strategy priority
+- Check layer naming conventions
+- Verify marker positioning
+- Consider using manual `set_annotation` for edge cases
+
+### Category Not Found
+
+- Use `get_annotations` with `includeCategories: true` to list available categories
+- Verify category ID is correct
+- Category may be from different Figma file
+
+## Annotation Workflow Checklist
+
+- [ ] Get selection and available categories
+- [ ] Scan text nodes for markers and descriptions
+- [ ] Scan target nodes (COMPONENT, INSTANCE, FRAME)
+- [ ] Match annotations using multiple strategies
+- [ ] Determine appropriate categories
+- [ ] Use `set_multiple_annotations` for batch creation
+- [ ] Verify annotations were created
+- [ ] Delete legacy manual annotations (after verification)
+- [ ] Document annotation conversion process

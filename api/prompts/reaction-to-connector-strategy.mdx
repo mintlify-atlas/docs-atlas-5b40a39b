@@ -1,0 +1,426 @@
+---
+title: Reaction to Connector Strategy Prompt
+description: Convert Figma prototype reactions to visual connector lines on the canvas
+---
+
+## Overview
+
+The `reaction_to_connector_strategy` prompt guides AI agents through converting Figma prototype reactions (interactions) into visual connector lines using FigJam-style connectors. This creates a visual representation of prototype flows directly on the canvas.
+
+## When to Use
+
+Use this prompt when:
+- Visualizing prototype interaction flows
+- Creating flow diagrams from prototypes
+- Documenting navigation paths
+- Generating user journey maps from prototypes
+- Converting interaction logic to visual diagrams
+
+## Process Overview
+
+### Step 1: Preparation & Context Gathering
+
+**Get node context and set up default connector:**
+
+```typescript
+// Get context about the nodes
+const design = await read_my_design();
+
+// Set default connector (must be done first)
+const connectorResult = await set_default_connector({});
+
+// Check if connector is set
+if (connectorResult.message.includes("No default connector set")) {
+  return `
+    No default connector found. Please:
+    1. Copy a connector line from FigJam
+    2. Paste it onto the current Figma page
+    3. Select the pasted connector
+    4. Then I'll set it as the default connector
+  `;
+}
+
+console.log("Default connector ready");
+```
+
+**What You Need:**
+- A FigJam connector pasted onto the Figma page
+- The connector can be styled however you want (color, thickness, arrow style)
+- Once set, this connector style will be used for all generated connections
+
+### Step 2: Get Reactions Data
+
+**Retrieve prototype reactions:**
+
+```typescript
+// Get reactions from selected nodes
+const selection = await get_selection();
+const nodeIds = selection.map(s => s.id);
+
+// Get all reactions
+const reactionsData = await get_reactions({ nodeIds });
+
+// reactionsData structure:
+// [
+//   {
+//     nodeId: "123:456",
+//     nodeName: "Button 1",
+//     reactions: [
+//       {
+//         trigger: { type: "ON_CLICK" },
+//         action: {
+//           type: "NAVIGATE",
+//           destinationId: "789:012",
+//           navigationTransition: {...},
+//           preserveScrollPosition: false
+//         }
+//       }
+//     ]
+//   }
+// ]
+```
+
+### Step 3: Filter Valid Reactions
+
+**Keep only reactions that create connections:**
+
+```typescript
+const validReactions = [];
+
+// Action types that create connections
+const connectionActionTypes = [
+  "NAVIGATE",
+  "OPEN_OVERLAY",
+  "SWAP_OVERLAY"
+];
+
+// Filter reactions
+for (const node of reactionsData) {
+  for (const reaction of node.reactions) {
+    const actionType = reaction.action.type;
+    const destinationId = reaction.action.destinationId;
+    
+    // Only keep if it's a connection type and has destination
+    if (connectionActionTypes.includes(actionType) && destinationId) {
+      validReactions.push({
+        sourceNodeId: node.nodeId,
+        sourceNodeName: node.nodeName,
+        destinationNodeId: destinationId,
+        actionType: actionType,
+        triggerType: reaction.trigger.type
+      });
+    }
+  }
+}
+
+console.log(`Found ${validReactions.length} valid connections`);
+```
+
+**Ignored Action Types:**
+- `CHANGE_TO` - State changes within component
+- `CLOSE_OVERLAY` - Closes overlays without navigation
+- `BACK` - Goes to previous screen
+- `SET_VARIABLE` - Variable manipulation
+
+### Step 4: Generate Connector Labels
+
+**Create descriptive labels for each connection:**
+
+```typescript
+function generateLabel(reaction: any, nodeNames: Map<string, string>): string {
+  const trigger = formatTrigger(reaction.triggerType);
+  const action = formatAction(reaction.actionType);
+  const destName = nodeNames.get(reaction.destinationNodeId) || "unknown";
+  
+  return `${trigger}, ${action} ${destName}`;
+}
+
+function formatTrigger(triggerType: string): string {
+  const triggerMap = {
+    "ON_CLICK": "On click",
+    "ON_DRAG": "On drag",
+    "ON_HOVER": "On hover",
+    "ON_PRESS": "On press",
+    "AFTER_TIMEOUT": "After delay",
+    "MOUSE_ENTER": "On mouse enter",
+    "MOUSE_LEAVE": "On mouse leave",
+    "MOUSE_UP": "On mouse up",
+    "MOUSE_DOWN": "On mouse down"
+  };
+  return triggerMap[triggerType] || triggerType;
+}
+
+function formatAction(actionType: string): string {
+  const actionMap = {
+    "NAVIGATE": "navigate to",
+    "OPEN_OVERLAY": "open overlay",
+    "SWAP_OVERLAY": "swap to"
+  };
+  return actionMap[actionType] || actionType;
+}
+
+// Generate labels for all connections
+const connections = validReactions.map(reaction => ({
+  ...reaction,
+  text: generateLabel(reaction, nodeNameMap)
+}));
+```
+
+**Example Labels:**
+- "On click, navigate to Home Screen"
+- "On hover, open overlay Settings Panel"
+- "After delay, navigate to Next Page"
+
+### Step 5: Prepare Connections Array
+
+**Format data for the create_connections tool:**
+
+```typescript
+const connectionsArray = connections.map(conn => ({
+  startNodeId: conn.sourceNodeId,
+  endNodeId: conn.destinationNodeId,
+  text: conn.text
+}));
+
+// Example structure:
+// [
+//   {
+//     startNodeId: "123:456",
+//     endNodeId: "789:012",
+//     text: "On click, navigate to Home Screen"
+//   },
+//   {
+//     startNodeId: "123:456",
+//     endNodeId: "345:678",
+//     text: "On hover, open overlay Menu"
+//   }
+// ]
+```
+
+### Step 6: Execute Connection Creation
+
+**Create the connector lines:**
+
+```typescript
+const result = await create_connections({
+  connections: connectionsArray
+});
+
+if (result.success) {
+  console.log(`Created ${connectionsArray.length} connector lines`);
+  
+  // Result includes details about each created connector
+  result.connectors.forEach(conn => {
+    console.log(`✓ ${conn.text}`);
+  });
+} else {
+  console.error(`Failed to create connections: ${result.message}`);
+}
+```
+
+## Complete Example
+
+```typescript
+async function visualizePrototypeFlow() {
+  // Step 1: Preparation
+  const design = await read_my_design();
+  const connectorCheck = await set_default_connector({});
+  
+  if (connectorCheck.message.includes("No default connector")) {
+    return "Please set up a FigJam connector first (see instructions above)";
+  }
+  
+  // Step 2: Get reactions
+  const selection = await get_selection();
+  const nodeIds = selection.map(s => s.id);
+  const reactionsData = await get_reactions({ nodeIds });
+  
+  // Step 3 & 4: Filter and generate labels
+  const connections = [];
+  const nodeNameMap = new Map(
+    reactionsData.map(n => [n.nodeId, n.nodeName])
+  );
+  
+  for (const node of reactionsData) {
+    for (const reaction of node.reactions) {
+      const actionType = reaction.action.type;
+      const destId = reaction.action.destinationId;
+      
+      if (["NAVIGATE", "OPEN_OVERLAY", "SWAP_OVERLAY"].includes(actionType) 
+          && destId) {
+        
+        // Get destination name
+        const destName = await getNodeName(destId);
+        nodeNameMap.set(destId, destName);
+        
+        const trigger = formatTrigger(reaction.trigger.type);
+        const action = formatAction(actionType);
+        
+        connections.push({
+          startNodeId: node.nodeId,
+          endNodeId: destId,
+          text: `${trigger}, ${action} ${destName}`
+        });
+      }
+    }
+  }
+  
+  // Step 5 & 6: Create connections
+  if (connections.length > 0) {
+    const result = await create_connections({ connections });
+    return `Created ${connections.length} connector lines visualizing the prototype flow`;
+  } else {
+    return "No valid reactions found to visualize";
+  }
+}
+
+async function getNodeName(nodeId: string): Promise<string> {
+  try {
+    const info = await get_node_info({ nodeId });
+    return info.name;
+  } catch {
+    return "Unknown";
+  }
+}
+```
+
+## Setup Instructions
+
+### Creating the Default Connector
+
+1. **Open FigJam** (File → New FigJam file or use existing)
+2. **Create a connector** with your desired style:
+   - Color
+   - Thickness
+   - Arrow style
+   - Line style (solid, dashed, etc.)
+3. **Copy the connector** (Cmd/Ctrl + C)
+4. **Return to Figma** design file
+5. **Paste the connector** (Cmd/Ctrl + V) onto the page
+6. **Select the pasted connector**
+7. **Set as default:**
+
+```typescript
+// With connector selected
+await set_default_connector({ connectorId: selectedConnectorId });
+
+// Or let it use the selection automatically
+await set_default_connector({});
+```
+
+### Updating the Default Connector
+
+To change the connector style:
+
+1. Copy a different styled connector from FigJam
+2. Paste it onto the Figma page
+3. Select it
+4. Call `set_default_connector()` again
+
+## Common Patterns
+
+### Navigation Flow
+
+```typescript
+// Typical navigation reaction:
+{
+  trigger: { type: "ON_CLICK" },
+  action: {
+    type: "NAVIGATE",
+    destinationId: "screen-id",
+    navigationTransition: {
+      type: "SLIDE_IN",
+      direction: "LEFT",
+      duration: 0.3
+    }
+  }
+}
+// Generates: "On click, navigate to [Screen Name]"
+```
+
+### Overlay Flow
+
+```typescript
+// Opening overlay:
+{
+  trigger: { type: "ON_CLICK" },
+  action: {
+    type: "OPEN_OVERLAY",
+    destinationId: "overlay-id",
+    overlayRelativePosition: { x: 0, y: 0 }
+  }
+}
+// Generates: "On click, open overlay [Overlay Name]"
+```
+
+### Hover Interaction
+
+```typescript
+// Hover trigger:
+{
+  trigger: { type: "MOUSE_ENTER" },
+  action: {
+    type: "NAVIGATE",
+    destinationId: "hover-state-id"
+  }
+}
+// Generates: "On mouse enter, navigate to [State Name]"
+```
+
+## Error Handling
+
+### No Default Connector
+
+```typescript
+const result = await set_default_connector({});
+
+if (!result.success) {
+  // Guide user through setup
+  return `
+    Setup required:
+    1. Open FigJam and create/copy a connector line
+    2. Paste it onto this Figma page
+    3. Select the connector
+    4. Run this command again
+  `;
+}
+```
+
+### Missing Destination Nodes
+
+```typescript
+// Some reactions may point to deleted nodes
+const connections = [];
+
+for (const reaction of validReactions) {
+  try {
+    // Verify destination exists
+    await get_node_info({ nodeId: reaction.destinationNodeId });
+    connections.push(reaction);
+  } catch {
+    console.warn(`Skipping reaction to deleted node: ${reaction.destinationNodeId}`);
+  }
+}
+```
+
+### No Reactions Found
+
+```typescript
+if (reactionsData.length === 0 || 
+    reactionsData.every(n => n.reactions.length === 0)) {
+  return "No prototype reactions found on selected nodes. Add interactions in Prototype mode first.";
+}
+```
+
+## Related Prompts
+
+- [Design Strategy](/api/prompts/design-strategy) - For creating prototypes
+- [Read Design Strategy](/api/prompts/read-design-strategy) - For analyzing prototypes
+
+## Related Tools
+
+- [get_reactions](/api/prototype/get-reactions)
+- [set_default_connector](/api/prototype/set-default-connector)
+- [create_connections](/api/prototype/create-connections)
+- [get_selection](/api/selection/get-selection)
+- [get_node_info](/api/selection/get-node-info)

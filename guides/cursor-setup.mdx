@@ -1,0 +1,183 @@
+---
+title: 'Setting up with Cursor'
+description: 'Complete guide to integrating Talk to Figma MCP with Cursor IDE'
+---
+
+This guide walks you through setting up Talk to Figma MCP with Cursor IDE, enabling AI-powered Figma design automation directly from your code editor.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- [Cursor IDE](https://cursor.sh) installed
+- [Bun](https://bun.sh) runtime installed
+- A Figma account with editor access
+
+## Quick Setup (Recommended)
+
+The fastest way to get started is using the automated setup script:
+
+<Steps>
+  <Step title="Install Bun">
+    If you haven't installed Bun yet, run:
+    
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+  </Step>
+
+  <Step title="Clone or download the repository">
+    Get the Talk to Figma MCP repository:
+    
+    ```bash
+    git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+    cd talk-to-figma-mcp
+    ```
+  </Step>
+
+  <Step title="Run automated setup">
+    Execute the setup script which will install dependencies and configure Cursor:
+    
+    ```bash
+    bun setup
+    ```
+    
+    This command will:
+    - Install all required dependencies
+    - Create `.cursor/mcp.json` with the MCP server configuration
+    - Create `.mcp.json` for Claude Code compatibility
+  </Step>
+
+  <Step title="Start the WebSocket server">
+    Launch the WebSocket relay server that connects Cursor to Figma:
+    
+    ```bash
+    bun socket
+    ```
+    
+    The server will start on port 3055. Keep this terminal window open.
+  </Step>
+
+  <Step title="Install the Figma plugin">
+    See the [Figma Plugin Setup](/guides/figma-plugin) guide for detailed instructions on installing and configuring the Figma plugin.
+  </Step>
+
+  <Step title="Restart Cursor">
+    Restart Cursor IDE to load the new MCP configuration.
+  </Step>
+</Steps>
+
+## Manual Setup
+
+If you prefer manual configuration or need to customize your setup:
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    bun install
+    ```
+  </Step>
+
+  <Step title="Create MCP configuration">
+    Create or edit `~/.cursor/mcp.json` (for global configuration) or `.cursor/mcp.json` in your project root:
+    
+    ```json
+    {
+      "mcpServers": {
+        "TalkToFigma": {
+          "command": "bunx",
+          "args": ["cursor-talk-to-figma-mcp@latest"]
+        }
+      }
+    }
+    ```
+    
+    This configuration uses the published npm package for easy updates.
+  </Step>
+
+  <Step title="Start the WebSocket server">
+    ```bash
+    bun socket
+    ```
+  </Step>
+
+  <Step title="Restart Cursor">
+    Restart Cursor IDE to apply the MCP configuration.
+  </Step>
+</Steps>
+
+## Verification
+
+To verify your setup is working:
+
+<Steps>
+  <Step title="Check MCP server status">
+    In Cursor, you should see "TalkToFigma" listed in the MCP servers panel.
+  </Step>
+
+  <Step title="Test connection">
+    With the WebSocket server running and Figma plugin active:
+    1. Ask Cursor to "join channel test"
+    2. Ask Cursor to "get document info"
+    
+    If you receive Figma document information, the setup is successful!
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### MCP server not appearing
+
+- Ensure you've restarted Cursor after creating the configuration
+- Check that `bunx` is available in your PATH
+- Verify the `.cursor/mcp.json` file syntax is valid JSON
+
+### Connection timeouts
+
+- Confirm the WebSocket server is running (`bun socket`)
+- Check that port 3055 is not blocked by a firewall
+- Ensure the Figma plugin is active and connected to the channel
+
+### Commands not working
+
+- Always call `join_channel` before issuing Figma commands
+- Make sure you're in the same channel in both Cursor and the Figma plugin
+- Verify the Figma plugin has the necessary permissions
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Figma Plugin Setup" icon="puzzle-piece" href="/guides/figma-plugin">
+    Install and configure the Figma plugin
+  </Card>
+  <Card title="Local Development" icon="code" href="/guides/local-development">
+    Set up a local development environment
+  </Card>
+</CardGroup>
+
+## Configuration Options
+
+### Using a specific version
+
+To use a specific version instead of `@latest`:
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@0.3.3"]
+    }
+  }
+}
+```
+
+### Environment variables
+
+You can customize the WebSocket server port:
+
+```bash
+PORT=4000 bun socket
+```
+
+Remember to update the Figma plugin connection URL if you change the port.

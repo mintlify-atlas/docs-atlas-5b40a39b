@@ -1,0 +1,262 @@
+---
+title: 'set_instance_overrides'
+description: 'Apply extracted overrides to component instances'
+---
+
+## Overview
+
+Applies previously extracted override properties to one or more target component instances. Target instances will be swapped to match the source component and all override properties will be applied.
+
+<Info>
+  This is part of the **Instance Override Propagation** workflow contributed by [@dusskapark](https://github.com/dusskapark). See the [demo video](https://youtu.be/uvuT8LByroI).
+</Info>
+
+<Warning>
+  You must first call [get_instance_overrides](/api/components-styles/get-instance-overrides) to capture overrides before using this tool.
+</Warning>
+
+## Parameters
+
+<ParamField path="sourceInstanceId" type="string" required>
+  ID of the source component instance that overrides were extracted from using `get_instance_overrides`
+</ParamField>
+
+<ParamField path="targetNodeIds" type="array" required>
+  Array of target instance IDs to apply the overrides to. Each instance will be updated with the captured overrides.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Whether the overall operation succeeded
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message describing the result
+</ResponseField>
+
+<ResponseField name="totalCount" type="number">
+  Total number of override properties that were applied
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Detailed results for each target instance
+  
+  <Expandable title="result properties">
+    <ResponseField name="success" type="boolean">
+      Whether overrides were successfully applied to this instance
+    </ResponseField>
+    
+    <ResponseField name="instanceId" type="string">
+      ID of the target instance
+    </ResponseField>
+    
+    <ResponseField name="instanceName" type="string">
+      Name of the target instance
+    </ResponseField>
+    
+    <ResponseField name="appliedCount" type="number">
+      Number of overrides applied to this instance
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Success or error message for this specific instance
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Usage Example
+
+```typescript
+// Step 1: Extract overrides from source instance
+const sourceOverrides = await get_instance_overrides({
+  nodeId: "source-instance-id"
+});
+
+if (!sourceOverrides.success) {
+  throw new Error(sourceOverrides.message);
+}
+
+// Step 2: Apply to multiple target instances
+const result = await set_instance_overrides({
+  sourceInstanceId: sourceOverrides.sourceInstanceId,
+  targetNodeIds: [
+    "target-instance-1",
+    "target-instance-2",
+    "target-instance-3"
+  ]
+});
+
+console.log(result);
+// {
+//   "success": true,
+//   "message": "Successfully applied overrides",
+//   "totalCount": 5,
+//   "results": [
+//     {
+//       "success": true,
+//       "instanceId": "target-instance-1",
+//       "instanceName": "Button",
+//       "appliedCount": 5,
+//       "message": "Successfully applied 5 overrides"
+//     },
+//     {
+//       "success": true,
+//       "instanceId": "target-instance-2",
+//       "instanceName": "Button",
+//       "appliedCount": 5,
+//       "message": "Successfully applied 5 overrides"
+//     },
+//     {
+//       "success": true,
+//       "instanceId": "target-instance-3",
+//       "instanceName": "Button",
+//       "appliedCount": 5,
+//       "message": "Successfully applied 5 overrides"
+//     }
+//   ]
+// }
+```
+
+## Complete Workflow Example
+
+```typescript
+// Complete instance override propagation workflow
+
+// 1. Get all button instances that need updating
+const buttons = await scan_nodes_by_types({
+  nodeId: "page-id",
+  types: ["INSTANCE"]
+});
+
+const targetButtons = buttons.matchingNodes
+  .filter(node => node.name.includes("Button"))
+  .map(node => node.id);
+
+// 2. Extract overrides from the source button
+const overrides = await get_instance_overrides({
+  nodeId: "customized-button-id"
+});
+
+if (overrides.success) {
+  console.log(`Captured ${overrides.overridesCount} overrides`);
+  
+  // 3. Apply to all target buttons
+  const result = await set_instance_overrides({
+    sourceInstanceId: overrides.sourceInstanceId,
+    targetNodeIds: targetButtons
+  });
+  
+  // 4. Report results
+  const successCount = result.results.filter(r => r.success).length;
+  console.log(`Successfully updated ${successCount}/${targetButtons.length} buttons`);
+  
+  // 5. Check for any failures
+  const failures = result.results.filter(r => !r.success);
+  if (failures.length > 0) {
+    console.warn("Failed instances:", failures);
+  }
+}
+```
+
+## What Happens During Application
+
+<Steps>
+  <Step title="Component swap">
+    Each target instance is swapped to match the source component (if different)
+  </Step>
+  
+  <Step title="Override application">
+    All captured override properties are applied to each target instance:
+    - Text content
+    - Visibility states
+    - Component swaps
+    - Color overrides
+    - And more
+  </Step>
+  
+  <Step title="Validation">
+    Each instance is validated and results are returned individually
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Bulk State Changes" icon="toggle-large-on">
+    Update multiple button instances to the same state (hover, disabled, etc.)
+  </Card>
+  
+  <Card title="Theme Application" icon="palette">
+    Apply a theme or color scheme across multiple component instances
+  </Card>
+  
+  <Card title="Content Updates" icon="pen-to-square">
+    Propagate text or content changes to similar instances
+  </Card>
+  
+  <Card title="Design Consistency" icon="check-double">
+    Ensure consistent customizations across repeated components
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+```typescript
+const result = await set_instance_overrides({
+  sourceInstanceId: "source-id",
+  targetNodeIds: ["target-1", "target-2"]
+});
+
+if (!result.success) {
+  console.error("Overall failure:", result.message);
+} else {
+  // Check individual instance results
+  result.results.forEach(instanceResult => {
+    if (!instanceResult.success) {
+      console.error(
+        `Failed to update ${instanceResult.instanceName}:`,
+        instanceResult.message
+      );
+    }
+  });
+}
+```
+
+## Possible Errors
+
+- **"No overrides found for source instance"**: Must call `get_instance_overrides` first
+- **"Target node is not a component instance"**: Target must be an instance, not a main component
+- **"Component mismatch"**: Target instances may need to be swapped to a compatible component first
+- **"Invalid node ID"**: One or more target node IDs don't exist
+
+## Performance Considerations
+
+<Tip>
+  When applying overrides to many instances (50+), consider processing them in batches to avoid Figma performance issues:
+  
+  ```typescript
+  const batchSize = 20;
+  for (let i = 0; i < targetIds.length; i += batchSize) {
+    const batch = targetIds.slice(i, i + batchSize);
+    await set_instance_overrides({
+      sourceInstanceId,
+      targetNodeIds: batch
+    });
+  }
+  ```
+</Tip>
+
+## Notes
+
+- The source instance ID must match an instance from a previous `get_instance_overrides` call
+- Target instances are automatically swapped to the source component if needed
+- All override properties from the source are applied (cannot apply selectively)
+- Results include per-instance success/failure information
+
+## Related Tools
+
+- [get_instance_overrides](/api/components-styles/get-instance-overrides) - Extract overrides from a source instance (required first step)
+- [create_component_instance](/api/components-styles/create-component-instance) - Create new instances
+- [scan_nodes_by_types](/api/annotations/scan-nodes-by-types) - Find instances to target
+- [get_nodes_info](/api/document-selection/get-nodes-info) - Get information about multiple nodes

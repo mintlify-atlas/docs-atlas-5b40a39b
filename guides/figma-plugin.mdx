@@ -1,0 +1,297 @@
+---
+title: 'Figma Plugin Setup'
+description: 'Installing and configuring the Cursor MCP Plugin for Figma'
+---
+
+The Figma plugin is a crucial component that enables communication between your AI agent (Cursor or Claude Code) and Figma. This guide covers both the published plugin and local development setup.
+
+## Installation Methods
+
+You can install the plugin in two ways:
+
+1. **From Figma Community** (Recommended for most users)
+2. **Local Development Plugin** (For contributors or customization)
+
+## Installing from Figma Community
+
+<Steps>
+  <Step title="Open the plugin page">
+    Visit the [Cursor Talk to Figma MCP Plugin](https://www.figma.com/community/plugin/1485687494525374295/cursor-talk-to-figma-mcp-plugin) on Figma Community.
+  </Step>
+
+  <Step title="Install the plugin">
+    Click the "Install" button on the plugin page.
+  </Step>
+
+  <Step title="Open Figma">
+    Open any Figma or FigJam file where you want to use the plugin.
+  </Step>
+
+  <Step title="Run the plugin">
+    - Right-click on the canvas or use the menu
+    - Go to Plugins → Cursor MCP Plugin
+    - The plugin UI will appear
+  </Step>
+</Steps>
+
+## Installing for Local Development
+
+For plugin development or customization:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+    cd talk-to-figma-mcp
+    ```
+  </Step>
+
+  <Step title="Open Figma plugin development">
+    In Figma Desktop:
+    - Go to Plugins → Development → New Plugin
+    - Choose "Link existing plugin"
+  </Step>
+
+  <Step title="Link the plugin manifest">
+    Navigate to and select:
+    ```
+    src/cursor_mcp_plugin/manifest.json
+    ```
+    
+    The plugin will now appear in your development plugins list.
+  </Step>
+
+  <Step title="Run the development plugin">
+    - Go to Plugins → Development → Cursor MCP Plugin
+    - The plugin UI will open
+  </Step>
+</Steps>
+
+## Plugin Configuration
+
+The plugin requires a WebSocket connection to communicate with your MCP server.
+
+### Plugin Manifest
+
+The plugin is configured via `manifest.json`:
+
+```json
+{
+  "name": "Cursor MCP Plugin",
+  "id": "1485687494525374295",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma",
+    "figjam"
+  ],
+  "permissions": [],
+  "networkAccess": {
+    "allowedDomains": [
+      "ws://localhost:3055"
+    ],
+    "reasoning": "This is a plugin for Cursor that allows you to connect to a local server",
+    "devAllowedDomains": [
+      "http://localhost:3055",
+      "ws://localhost:3055"
+    ]
+  },
+  "documentAccess": "dynamic-page"
+}
+```
+
+Key configuration:
+- **editorType**: Works in both Figma and FigJam
+- **networkAccess**: Connects to localhost WebSocket server on port 3055
+- **documentAccess**: `dynamic-page` allows access to the current page
+
+## Using the Plugin
+
+<Steps>
+  <Step title="Start the WebSocket server">
+    Before using the plugin, ensure the WebSocket server is running:
+    
+    ```bash
+    bun socket
+    ```
+    
+    You should see:
+    ```
+    WebSocket server running on port 3055
+    ```
+  </Step>
+
+  <Step title="Open the plugin in Figma">
+    Run the Cursor MCP Plugin from the Plugins menu.
+  </Step>
+
+  <Step title="Connect to WebSocket">
+    In the plugin UI:
+    1. The default WebSocket URL is `ws://localhost:3055`
+    2. Click "Connect" to establish the connection
+    3. Enter a channel name (e.g., "test" or "my-project")
+    4. Click "Join Channel"
+  </Step>
+
+  <Step title="Verify connection">
+    You should see a success message indicating you've joined the channel. The WebSocket server logs will also show the connection.
+  </Step>
+
+  <Step title="Join the same channel in your AI agent">
+    In Cursor or Claude Code, use the `join_channel` tool with the same channel name.
+  </Step>
+</Steps>
+
+## Channel-Based Communication
+
+The plugin uses channels to isolate communication between different sessions:
+
+- Each channel is independent
+- Multiple users can use different channels simultaneously
+- Only clients in the same channel can communicate
+- Use descriptive channel names for different projects
+
+### Example workflow:
+
+```
+1. Plugin joins channel "design-system"
+2. Cursor/Claude joins channel "design-system"
+3. Commands from Cursor → WebSocket → Plugin (same channel)
+4. Results from Plugin → WebSocket → Cursor (same channel)
+```
+
+## Plugin Architecture
+
+The plugin consists of three main files:
+
+### code.js (Main Thread)
+
+Handles all Figma API operations:
+- Reads and modifies Figma nodes
+- Executes 30+ commands (create, update, delete, export)
+- Manages chunking for large operations
+- Sends results back through WebSocket
+
+### ui.html (Plugin UI)
+
+Provides the user interface:
+- WebSocket connection management
+- Channel selection
+- Connection status display
+- Real-time message logging
+
+### manifest.json (Configuration)
+
+Defines plugin metadata and permissions:
+- Network access configuration
+- Editor compatibility (Figma/FigJam)
+- Document access permissions
+
+## Troubleshooting
+
+### Plugin won't connect
+
+<AccordionGroup>
+  <Accordion title="WebSocket server not running">
+    Ensure `bun socket` is running before launching the plugin.
+    
+    Check the terminal for:
+    ```
+    WebSocket server running on port 3055
+    ```
+  </Accordion>
+
+  <Accordion title="Port 3055 blocked">
+    If port 3055 is in use, you can specify a different port:
+    
+    ```bash
+    PORT=4000 bun socket
+    ```
+    
+    Update the plugin UI to connect to the new port.
+  </Accordion>
+
+  <Accordion title="Firewall blocking connection">
+    Ensure your firewall allows localhost connections on port 3055.
+  </Accordion>
+</AccordionGroup>
+
+### Commands not executing
+
+<AccordionGroup>
+  <Accordion title="Not in the same channel">
+    Verify both the plugin and your AI agent are in the same channel.
+  </Accordion>
+
+  <Accordion title="Plugin not responding">
+    Try:
+    1. Closing and reopening the plugin
+    2. Restarting the WebSocket server
+    3. Rejoining the channel
+  </Accordion>
+
+  <Accordion title="Permission errors">
+    Some operations require:
+    - Selected nodes (for modification commands)
+    - Edit access to the file
+    - Proper node types (e.g., can't set text on rectangles)
+  </Accordion>
+</AccordionGroup>
+
+### Windows + WSL specific issues
+
+See the [Windows + WSL Setup Guide](/guides/windows-wsl) for platform-specific troubleshooting.
+
+## Development Notes
+
+### Plugin is not built/bundled
+
+The plugin files are used directly:
+- `code.js` is vanilla JavaScript (no build step)
+- `ui.html` is plain HTML with inline JavaScript
+- No transpilation or bundling required
+
+### Making changes
+
+When developing the plugin locally:
+
+<Steps>
+  <Step title="Edit the files">
+    Modify `code.js` or `ui.html` in `src/cursor_mcp_plugin/`
+  </Step>
+
+  <Step title="Reload the plugin">
+    In Figma:
+    - Close the plugin if it's running
+    - Go to Plugins → Development → Cursor MCP Plugin
+    - The changes will be reflected immediately
+  </Step>
+</Steps>
+
+No rebuild or restart required - Figma loads the files directly.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Available Tools" icon="wrench" href="/api-reference/tools">
+    Explore all 50+ MCP tools available
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/usage/best-practices">
+    Learn effective design automation patterns
+  </Card>
+</CardGroup>
+
+## Advanced Configuration
+
+### Custom WebSocket URL
+
+For non-standard setups, you can modify the WebSocket URL in the plugin UI:
+
+- Different port: `ws://localhost:4000`
+- Remote server: `ws://your-server.com:3055`
+- Secure connection: `wss://your-server.com:3055`
+
+### Multiple simultaneous connections
+
+You can run multiple instances of the plugin in different Figma files, each connected to different channels for parallel work.

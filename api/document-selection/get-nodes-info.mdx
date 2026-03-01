@@ -1,0 +1,99 @@
+---
+title: "get_nodes_info"
+description: "Get detailed information about multiple nodes in Figma"
+---
+
+## Overview
+
+Retrieves comprehensive information about multiple nodes at once by their IDs. This is a batch version of `get_node_info` that efficiently fetches information for multiple nodes in a single operation.
+
+## Parameters
+
+<ParamField path="nodeIds" type="array" required>
+  Array of node IDs to get information about. Each ID should be a string.
+  
+  ```typescript
+  nodeIds: ["123:456", "123:457", "123:458"]
+  ```
+</ParamField>
+
+## Return Value
+
+Returns an array of node information objects:
+
+```json
+[
+  {
+    "id": "123:456",
+    "name": "Header",
+    "type": "FRAME",
+    "fills": [...],
+    "children": [...]
+  },
+  {
+    "id": "123:457",
+    "name": "Body Text",
+    "type": "TEXT",
+    "characters": "Lorem ipsum",
+    "style": {...}
+  },
+  {
+    "id": "123:458",
+    "name": "Button",
+    "type": "FRAME",
+    "fills": [...]
+  }
+]
+```
+
+## Usage Example
+
+```typescript
+const nodesInfo = await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "get_nodes_info",
+  arguments: {
+    nodeIds: ["123:456", "123:457", "123:458"]
+  }
+});
+
+nodesInfo.forEach(node => {
+  console.log(`${node.name}: ${node.type}`);
+  if (node.type === "TEXT") {
+    console.log(`  Text: ${node.characters}`);
+  }
+});
+```
+
+## Best Practices
+
+<Note>
+  Use this tool instead of calling `get_node_info` multiple times. Batch operations are more efficient.
+</Note>
+
+<Warning>
+  All node IDs must be valid. If any ID is invalid, the entire operation may fail.
+</Warning>
+
+## Performance Considerations
+
+- Batch fetching is significantly faster than individual requests
+- The tool processes all requests in parallel using `Promise.all`
+- Each node is filtered through the same `filterFigmaNode` function as `get_node_info`
+
+## Common Use Cases
+
+- Inspecting multiple nodes discovered through scanning operations
+- Batch analyzing children of a parent node
+- Verifying properties of multiple nodes before batch modifications
+- Collecting data from specific nodes in a design system
+
+## Code Location
+
+Source: `server.ts:313-348`
+
+## Related Tools
+
+- [get_node_info](/api/document-selection/get-node-info) - Get info for a single node
+- [scan_text_nodes](/api/scanning/scan-text-nodes) - Discover text nodes
+- [scan_nodes_by_types](/api/scanning/scan-nodes-by-types) - Discover nodes by type

@@ -1,0 +1,312 @@
+---
+title: set_multiple_text_contents
+description: Set text content for multiple text nodes in parallel with batch processing and progress tracking
+---
+
+## Overview
+
+The `set_multiple_text_contents` tool updates multiple text nodes in a single operation. It's optimized for bulk text updates with automatic chunking, progress tracking, and error handling for individual failures.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the parent node containing the text nodes to replace
+</ParamField>
+
+<ParamField path="text" type="array" required>
+  Array of objects specifying which text nodes to update and their new content
+  
+  Each object must contain:
+  - `nodeId` (string, required) - The ID of the text node to update
+  - `text` (string, required) - The new text content
+</ParamField>
+
+## Response
+
+Returns an object containing:
+
+- `success` (boolean) - Overall operation success
+- `nodeId` (string) - Parent node ID
+- `replacementsApplied` (number) - Number of successful updates
+- `replacementsFailed` (number) - Number of failed updates
+- `totalReplacements` (number) - Total number of replacements attempted
+- `completedInChunks` (number) - Number of batches processed
+- `results` (array) - Detailed results for each text node:
+  - `success` (boolean) - Whether this specific update succeeded
+  - `nodeId` (string) - The text node ID
+  - `error` (string, optional) - Error message if update failed
+  - `originalText` (string, optional) - Original text content
+  - `translatedText` (string, optional) - New text content
+
+## Batch Processing
+
+The tool automatically processes text updates in batches:
+
+- **Batch Size**: Processes 5 nodes at a time
+- **Progress Updates**: Real-time updates after each batch
+- **Partial Success**: Continues processing even if some nodes fail
+- **Error Isolation**: Failures in one node don't affect others
+
+## Progress Tracking
+
+During processing, you'll receive progress updates showing:
+- Current batch being processed (e.g., "Processing batch 3 of 10")
+- Number of nodes processed so far
+- Percentage complete
+- Any errors encountered
+
+## Example
+
+```typescript
+const result = await set_multiple_text_contents({
+  nodeId: "parent-frame-id",
+  text: [
+    { nodeId: "heading-1", text: "Welcome to Our App" },
+    { nodeId: "subtitle-1", text: "Get started in minutes" },
+    { nodeId: "button-1", text: "Sign Up Free" },
+    { nodeId: "description-1", text: "No credit card required" }
+  ]
+});
+
+console.log(`Updated ${result.replacementsApplied} of ${result.totalReplacements} nodes`);
+console.log(`Completed in ${result.completedInChunks} batches`);
+
+// Check for failures
+if (result.replacementsFailed > 0) {
+  const failures = result.results.filter(r => !r.success);
+  failures.forEach(f => console.log(`Failed: ${f.nodeId} - ${f.error}`));
+}
+```
+
+## Use Cases
+
+### Localization/Translation
+Translate all text in a design to a different language.
+
+```typescript
+// First, scan to get all text nodes
+const textNodes = await scan_text_nodes({ nodeId: "screen-id" });
+
+// Prepare translations
+const translations = textNodes.textNodes.map(node => ({
+  nodeId: node.id,
+  text: translateToSpanish(node.characters)
+}));
+
+// Apply all translations in one batch
+await set_multiple_text_contents({
+  nodeId: "screen-id",
+  text: translations
+});
+```
+
+### Content Population
+Populate a design template with real data from an API.
+
+```typescript
+const userData = await fetchUserData();
+
+const updates = [
+  { nodeId: "name-field", text: userData.fullName },
+  { nodeId: "email-field", text: userData.email },
+  { nodeId: "role-field", text: userData.role },
+  { nodeId: "join-date", text: formatDate(userData.joinedAt) }
+];
+
+await set_multiple_text_contents({
+  nodeId: "profile-card",
+  text: updates
+});
+```
+
+### Table Data Updates
+Update multiple rows in a table design.
+
+```typescript
+const tableData = [
+  { id: "row-1-col-1", text: "Alice" },
+  { id: "row-1-col-2", text: "Engineer" },
+  { id: "row-1-col-3", text: "$120,000" },
+  { id: "row-2-col-1", text: "Bob" },
+  { id: "row-2-col-2", text: "Designer" },
+  { id: "row-2-col-3", text: "$110,000" }
+];
+
+const updates = tableData.map(cell => ({
+  nodeId: cell.id,
+  text: cell.text
+}));
+
+await set_multiple_text_contents({
+  nodeId: "data-table",
+  text: updates
+});
+```
+
+### A/B Testing Variants
+Quickly create text variations for testing.
+
+```typescript
+// Variant A: Action-oriented copy
+const variantA = [
+  { nodeId: "hero-text", text: "Start Building Today" },
+  { nodeId: "cta-button", text: "Get Started Now" }
+];
+
+// Variant B: Benefit-focused copy  
+const variantB = [
+  { nodeId: "hero-text", text: "Save 10 Hours Per Week" },
+  { nodeId: "cta-button", text: "See How It Works" }
+];
+
+// Apply variant
+await set_multiple_text_contents({
+  nodeId: "landing-page",
+  text: variantA
+});
+```
+
+## Performance Considerations
+
+### Batch Size
+The default batch size of 5 nodes balances performance and responsiveness:
+- **Smaller batches** (1-3): More progress updates, slower overall
+- **Default batches** (5): Good balance for most use cases
+- **Larger batches** would be faster but with less granular progress
+
+### Processing Time
+Expect approximately:
+- **1-10 nodes**: < 1 second
+- **10-50 nodes**: 2-5 seconds
+- **50-200 nodes**: 10-20 seconds
+- **200+ nodes**: 30+ seconds with continuous progress updates
+
+### Font Loading
+The first update to a node may be slower if Figma needs to load the font. Subsequent updates with the same font are faster.
+
+## Error Handling
+
+The tool is designed to be resilient:
+
+```typescript
+const result = await set_multiple_text_contents({
+  nodeId: "container",
+  text: [
+    { nodeId: "valid-node", text: "Success" },
+    { nodeId: "invalid-node", text: "Will fail" },
+    { nodeId: "another-valid", text: "Also succeeds" }
+  ]
+});
+
+// Result shows partial success:
+// replacementsApplied: 2
+// replacementsFailed: 1
+// results[1].error: "Node not found" or "Not a text node"
+```
+
+### Common Errors
+- **"Node not found"**: The specified nodeId doesn't exist
+- **"Not a text node"**: The node is a different type (frame, rectangle, etc.)
+- **"Font loading failed"**: The required font isn't available
+- **"No text provided"**: Empty text array passed
+
+## Best Practices
+
+### 1. Validate Before Updating
+```typescript
+// Scan first to ensure nodes exist
+const textNodes = await scan_text_nodes({ nodeId: "frame-id" });
+const validIds = new Set(textNodes.textNodes.map(n => n.id));
+
+// Filter updates to only valid IDs
+const updates = proposedUpdates.filter(u => validIds.has(u.nodeId));
+
+await set_multiple_text_contents({
+  nodeId: "frame-id",
+  text: updates
+});
+```
+
+### 2. Handle Partial Failures
+```typescript
+const result = await set_multiple_text_contents({ nodeId, text: updates });
+
+if (result.replacementsFailed > 0) {
+  // Retry failed updates
+  const failed = result.results
+    .filter(r => !r.success)
+    .map(r => ({ nodeId: r.nodeId, text: getRetryText(r.nodeId) }));
+  
+  await set_multiple_text_contents({ nodeId, text: failed });
+}
+```
+
+### 3. Chunk Large Updates
+For 500+ nodes, consider splitting into multiple calls:
+
+```typescript
+const chunkSize = 100;
+for (let i = 0; i < allUpdates.length; i += chunkSize) {
+  const chunk = allUpdates.slice(i, i + chunkSize);
+  await set_multiple_text_contents({
+    nodeId: "parent-id",
+    text: chunk
+  });
+  console.log(`Completed chunk ${i / chunkSize + 1}`);
+}
+```
+
+### 4. Verify Critical Updates
+```typescript
+await set_multiple_text_contents({ nodeId, text: updates });
+
+// Verify critical nodes were updated
+for (const critical of criticalNodeIds) {
+  const info = await get_node_info({ nodeId: critical });
+  console.log(`Verified: ${info.name} = ${info.characters}`);
+}
+```
+
+## Workflow Example: Content Localization
+
+```typescript
+// 1. Clone the design for the new language
+const cloned = await clone_node({
+  nodeId: "original-screen",
+  x: 1000,
+  y: 0
+});
+
+// 2. Scan all text in the clone
+const textNodes = await scan_text_nodes({ nodeId: cloned.id });
+
+// 3. Prepare translations
+const translations = await Promise.all(
+  textNodes.textNodes.map(async node => ({
+    nodeId: node.id,
+    text: await translateText(node.characters, 'es')
+  }))
+);
+
+// 4. Apply all translations in batches
+const result = await set_multiple_text_contents({
+  nodeId: cloned.id,
+  text: translations
+});
+
+// 5. Verify and export
+if (result.replacementsApplied === translations.length) {
+  await export_node_as_image({
+    nodeId: cloned.id,
+    format: "PNG",
+    scale: 2
+  });
+}
+```
+
+## Related Tools
+
+- [scan_text_nodes](/api/text-operations/scan-text-nodes) - Find all text nodes before updating
+- [set_text_content](/api/text-operations/set-text-content) - Update a single text node
+- [clone_node](/api/node-operations/clone-node) - Clone designs before making changes
+- [export_node_as_image](/api/export/export-node-as-image) - Export after updates for verification

@@ -1,0 +1,367 @@
+---
+title: 'Windows + WSL Setup'
+description: 'Setting up Talk to Figma MCP on Windows using WSL (Windows Subsystem for Linux)'
+---
+
+This guide covers the specific steps needed to set up Talk to Figma MCP on Windows using WSL, including important network configuration for cross-platform communication.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Windows 10 version 2004 or higher, or Windows 11
+- WSL 2 installed and configured
+- A Linux distribution installed (Ubuntu recommended)
+- Figma Desktop running on Windows (not in WSL)
+
+## WSL Installation
+
+If you haven't installed WSL yet:
+
+<Steps>
+  <Step title="Enable WSL">
+    Open PowerShell as Administrator and run:
+    
+    ```powershell
+    wsl --install
+    ```
+    
+    This installs WSL 2 and Ubuntu by default.
+  </Step>
+
+  <Step title="Restart your computer">
+    After installation completes, restart Windows.
+  </Step>
+
+  <Step title="Set up your Linux user">
+    When you first launch WSL, you'll be prompted to create a username and password.
+  </Step>
+</Steps>
+
+## Installing Bun on Windows
+
+For the WebSocket server to be accessible from Windows (where Figma runs), install Bun on Windows:
+
+<Steps>
+  <Step title="Open PowerShell">
+    Open PowerShell (not as Administrator).
+  </Step>
+
+  <Step title="Install Bun">
+    Run the Bun installation command:
+    
+    ```powershell
+    powershell -c "irm bun.sh/install.ps1|iex"
+    ```
+    
+    This installs Bun natively on Windows.
+  </Step>
+
+  <Step title="Verify installation">
+    ```powershell
+    bun --version
+    ```
+  </Step>
+</Steps>
+
+## Project Setup
+
+<Steps>
+  <Step title="Clone the repository in Windows">
+    In PowerShell:
+    
+    ```powershell
+    git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+    cd talk-to-figma-mcp
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```powershell
+    bun install
+    ```
+  </Step>
+
+  <Step title="Run the setup script">
+    ```powershell
+    bun setup
+    ```
+    
+    This creates the necessary MCP configuration files.
+  </Step>
+</Steps>
+
+## Critical: Configure WebSocket Server for WSL
+
+The most important step for Windows + WSL setup is configuring the WebSocket server to listen on all network interfaces:
+
+<Steps>
+  <Step title="Open the socket configuration file">
+    Edit `src/socket.ts` in your preferred editor.
+  </Step>
+
+  <Step title="Uncomment the hostname configuration">
+    Find this section in the file (around line 43-44):
+    
+    ```typescript
+    const server = Bun.serve({
+      port: 3055,
+      // uncomment this to allow connections in windows wsl
+      // hostname: "0.0.0.0",
+    ```
+    
+    Uncomment the `hostname` line:
+    
+    ```typescript
+    const server = Bun.serve({
+      port: 3055,
+      // uncomment this to allow connections in windows wsl
+      hostname: "0.0.0.0",
+    ```
+    
+    This allows the server to accept connections from Windows (where Figma runs).
+  </Step>
+
+  <Step title="Save the file">
+    Save your changes to `src/socket.ts`.
+  </Step>
+</Steps>
+
+<Warning>
+  Without setting `hostname: "0.0.0.0"`, the WebSocket server will only listen on localhost within WSL and won't be accessible from Windows, causing connection failures.
+</Warning>
+
+## Starting the WebSocket Server
+
+<Steps>
+  <Step title="Start the server">
+    In PowerShell, from the project directory:
+    
+    ```powershell
+    bun socket
+    ```
+    
+    You should see:
+    ```
+    WebSocket server running on port 3055
+    ```
+  </Step>
+
+  <Step title="Verify accessibility">
+    The server should now be accessible at `ws://localhost:3055` from both Windows and WSL.
+  </Step>
+</Steps>
+
+## MCP Server Configuration
+
+### For Cursor on Windows
+
+If using Cursor on Windows:
+
+<Steps>
+  <Step title="Locate or create MCP config">
+    The config file should be at:
+    ```
+    C:\Users\YourUsername\.cursor\mcp.json
+    ```
+    
+    Or in your project root:
+    ```
+    .cursor\mcp.json
+    ```
+  </Step>
+
+  <Step title="Add the configuration">
+    ```json
+    {
+      "mcpServers": {
+        "TalkToFigma": {
+          "command": "bunx",
+          "args": ["cursor-talk-to-figma-mcp@latest"]
+        }
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Restart Cursor">
+    Restart Cursor to load the configuration.
+  </Step>
+</Steps>
+
+### For Cursor/Claude Code in WSL
+
+If running your AI agent inside WSL:
+
+<Steps>
+  <Step title="Install Bun in WSL">
+    Inside your WSL terminal:
+    
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+  </Step>
+
+  <Step title="Run setup in WSL">
+    ```bash
+    cd /mnt/c/path/to/talk-to-figma-mcp
+    bun setup
+    ```
+  </Step>
+
+  <Step title="Configure MCP">
+    Create `.mcp.json` in your WSL home directory or project root:
+    
+    ```json
+    {
+      "mcpServers": {
+        "TalkToFigma": {
+          "command": "bunx",
+          "args": ["cursor-talk-to-figma-mcp@latest"]
+        }
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Figma Plugin Setup
+
+<Steps>
+  <Step title="Install the Figma plugin">
+    Follow the standard [Figma Plugin Setup](/guides/figma-plugin) guide to install the plugin in Figma Desktop on Windows.
+  </Step>
+
+  <Step title="Connect to WebSocket">
+    In the plugin UI, use:
+    ```
+    ws://localhost:3055
+    ```
+    
+    This works because the server is running on Windows with `hostname: "0.0.0.0"`.
+  </Step>
+
+  <Step title="Join a channel">
+    Enter a channel name and click "Join Channel".
+  </Step>
+</Steps>
+
+## Network Architecture
+
+Understanding the network flow in Windows + WSL:
+
+```
+Figma (Windows) ←→ WebSocket Server (Windows:3055) ←→ MCP Server (Windows/WSL) ←→ Cursor/Claude (Windows/WSL)
+```
+
+Key points:
+- Figma runs on Windows host
+- WebSocket server runs on Windows with `0.0.0.0` binding
+- MCP server can run on either Windows or WSL
+- AI agent (Cursor/Claude) can run on either Windows or WSL
+
+## Troubleshooting
+
+### Connection refused errors
+
+<AccordionGroup>
+  <Accordion title="Hostname not set to 0.0.0.0">
+    This is the most common issue. Verify that you've uncommented:
+    
+    ```typescript
+    hostname: "0.0.0.0",
+    ```
+    
+    in `src/socket.ts`.
+  </Accordion>
+
+  <Accordion title="Firewall blocking connection">
+    Windows Firewall might block the connection. When you first run `bun socket`, Windows may prompt you to allow network access. Click "Allow".
+    
+    If you missed the prompt:
+    1. Open Windows Defender Firewall
+    2. Click "Allow an app or feature through Windows Defender Firewall"
+    3. Find "bun" and ensure both Private and Public networks are checked
+  </Accordion>
+
+  <Accordion title="Wrong network interface">
+    Ensure you're using `localhost` or `127.0.0.1` in the Figma plugin, not WSL-specific IP addresses.
+  </Accordion>
+</AccordionGroup>
+
+### Performance issues
+
+<AccordionGroup>
+  <Accordion title="Slow file access">
+    When working with files in `/mnt/c/`, WSL can be slow. Consider:
+    - Cloning the repo in WSL's native filesystem (`~/projects/`)
+    - Running the WebSocket server on Windows instead
+  </Accordion>
+
+  <Accordion title="Network latency">
+    WSL 2 uses a virtualized network. If you experience latency:
+    - Run the WebSocket server on Windows
+    - Keep the project files on the Windows filesystem
+  </Accordion>
+</AccordionGroup>
+
+### WSL version issues
+
+<AccordionGroup>
+  <Accordion title="Using WSL 1 instead of WSL 2">
+    Check your WSL version:
+    
+    ```powershell
+    wsl -l -v
+    ```
+    
+    Convert to WSL 2 if needed:
+    
+    ```powershell
+    wsl --set-version Ubuntu 2
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices for Windows + WSL
+
+<CardGroup cols={2}>
+  <Card title="Run server on Windows" icon="windows">
+    For best performance, run the WebSocket server on Windows where Figma is running.
+  </Card>
+  
+  <Card title="Use Windows filesystem" icon="folder">
+    Store project files on Windows filesystem (`C:\`) rather than WSL filesystem for better performance.
+  </Card>
+  
+  <Card title="Install Bun on both" icon="layer-group">
+    Install Bun on both Windows and WSL for maximum flexibility.
+  </Card>
+  
+  <Card title="Always set hostname" icon="network-wired">
+    Remember to set `hostname: "0.0.0.0"` in the WebSocket server configuration.
+  </Card>
+</CardGroup>
+
+## Recommended Setup
+
+For optimal performance on Windows + WSL:
+
+1. **Project location**: Windows filesystem (`C:\Users\YourName\projects\talk-to-figma-mcp`)
+2. **Bun installation**: Windows (for running the server)
+3. **WebSocket server**: Run on Windows with `hostname: "0.0.0.0"`
+4. **MCP server**: Can run on either Windows or WSL
+5. **AI agent**: Use Cursor on Windows for best performance
+
+This setup minimizes cross-platform overhead and provides the smoothest experience.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cursor Setup" icon="code" href="/guides/cursor-setup">
+    Complete Cursor IDE configuration
+  </Card>
+  <Card title="Figma Plugin" icon="puzzle-piece" href="/guides/figma-plugin">
+    Install and configure the Figma plugin
+  </Card>
+</CardGroup>

@@ -1,0 +1,249 @@
+---
+title: 'Converting legacy annotations'
+description: 'Convert manual annotation markers and text descriptions to Figma native annotations with proper linking and categorization.'
+keywords: ['annotations', 'conversion', 'design review', 'comments']
+icon: 'message'
+---
+
+## Overview
+
+Many design teams create annotations manually using text nodes with numbered markers (e.g., "1", "2", "3") and corresponding description text. Figma's native annotation system provides a more structured way to annotate designs with better organization, filtering, and collaboration features.
+
+This workflow helps you convert legacy manual annotations into Figma's native annotation system while maintaining the connection between markers and their targets.
+
+## Why convert to native annotations
+
+<CardGroup cols={2}>
+  <Card title="Better organization" icon="folder-tree">
+    Native annotations support categories, filtering, and structured metadata that manual text nodes cannot provide.
+  </Card>
+  <Card title="Improved collaboration" icon="users">
+    Team members can filter annotations by type, resolve them, and track changes more effectively.
+  </Card>
+  <Card title="Cleaner canvas" icon="broom">
+    Remove clutter from your design canvas while preserving all annotation content and context.
+  </Card>
+  <Card title="Richer formatting" icon="markdown">
+    Native annotations support markdown formatting for better readability and structure.
+  </Card>
+</CardGroup>
+
+## Legacy annotation patterns
+
+Common manual annotation patterns include:
+
+- Numbered text markers ("1", "2", "3") placed near UI elements
+- Corresponding description text in a sidebar or separate frame
+- Lines or arrows connecting markers to their targets
+- Color coding for different annotation types
+
+## Conversion workflow
+
+<Steps>
+  <Step title="Scan for annotation markers">
+    Use `scan_text_nodes` to identify numbered markers and description text in your design.
+
+    ```javascript
+    scan_text_nodes({
+      chunkSize: 50,
+      delayMs: 100
+    })
+    ```
+
+    Look for patterns like:
+    - Single-digit or numbered text nodes (markers)
+    - Longer text nodes nearby (descriptions)
+  </Step>
+
+  <Step title="Identify target elements">
+    Use `scan_nodes_by_types` to find the UI elements that annotations refer to.
+
+    ```javascript
+    scan_nodes_by_types({
+      nodeTypes: ["FRAME", "COMPONENT", "INSTANCE", "RECTANGLE"],
+      chunkSize: 50
+    })
+    ```
+
+    This helps you build a map of potential annotation targets.
+  </Step>
+
+  <Step title="Match markers to targets">
+    Analyze the spatial relationships, naming patterns, or explicit connections to match each marker with its target element.
+
+    Matching strategies:
+    - **Proximity**: Markers are usually near their targets
+    - **Naming**: Target nodes may include marker numbers in their names
+    - **Path analysis**: Check parent-child relationships
+    - **Line connections**: Follow connector lines if present
+  </Step>
+
+  <Step title="Categorize annotations">
+    Determine the appropriate category for each annotation based on its content.
+
+    ```javascript
+    get_annotations()
+    ```
+
+    Common categories:
+    - **IMPORTANT**: Critical design decisions or constraints
+    - **NOTE**: Supplementary information
+    - **QUESTION**: Items needing feedback or clarification
+  </Step>
+
+  <Step title="Create native annotations">
+    Use `set_multiple_annotations` to batch create native annotations with proper linking.
+
+    ```javascript
+    set_multiple_annotations({
+      annotations: [
+        {
+          nodeId: "target-element-id-1",
+          text: "Description text with **markdown** support",
+          category: "IMPORTANT"
+        },
+        {
+          nodeId: "target-element-id-2",
+          text: "Another annotation",
+          category: "NOTE"
+        }
+      ]
+    })
+    ```
+  </Step>
+
+  <Step title="Verify and clean up">
+    Check that all annotations are properly linked to their targets and visible in Figma's annotation panel.
+
+    ```javascript
+    get_annotations()
+    ```
+
+    Once verified, delete the legacy annotation nodes:
+
+    ```javascript
+    delete_multiple_nodes({
+      nodeIds: ["legacy-marker-1", "legacy-marker-2", "legacy-text-1"]
+    })
+    ```
+  </Step>
+</Steps>
+
+## Matching strategies
+
+<Tabs>
+  <Tab title="Proximity-based">
+    Calculate the distance between marker nodes and potential targets. The closest eligible node is likely the target.
+
+    ```javascript
+    function findClosestTarget(markerNode, candidateNodes) {
+      const markerX = markerNode.x;
+      const markerY = markerNode.y;
+      
+      let closest = null;
+      let minDistance = Infinity;
+      
+      for (const candidate of candidateNodes) {
+        const dx = candidate.x - markerX;
+        const dy = candidate.y - markerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = candidate;
+        }
+      }
+      
+      return closest;
+    }
+    ```
+  </Tab>
+
+  <Tab title="Name pattern">
+    Look for matching patterns in node names. For example, a marker "3" might target a node named "Button-3" or "Feature 3".
+
+    ```javascript
+    function matchByName(markerText, candidateNodes) {
+      const markerNumber = markerText.trim();
+      
+      return candidateNodes.find(node => {
+        return node.name.includes(markerNumber) || 
+               node.name.includes(`#${markerNumber}`);
+      });
+    }
+    ```
+  </Tab>
+
+  <Tab title="Path analysis">
+    Check if the marker and target share a common parent or are in the same component.
+
+    ```javascript
+    function matchByPath(markerNode, candidateNodes) {
+      const markerParent = markerNode.parent;
+      
+      return candidateNodes.filter(node => {
+        return node.parent === markerParent;
+      });
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Best practices
+
+<Warning>
+Always verify that native annotations are correctly linked before deleting legacy annotation nodes. Keep a backup of your design or work on a copy first.
+</Warning>
+
+- **Batch operations**: Use `set_multiple_annotations` for better performance when converting many annotations
+- **Preserve context**: Include any relevant context from the legacy annotations in the new annotation text
+- **Use markdown**: Take advantage of markdown formatting for better readability
+- **Category consistency**: Establish consistent category usage across your team
+- **Verify all links**: Ensure every annotation has a valid target node before cleanup
+- **Document the process**: Keep notes on your matching logic for future conversions
+
+## Tool sequence
+
+1. `join_channel` - Connect to Figma
+2. `get_document_info` - Understand the design structure
+3. `scan_text_nodes` - Find marker and description text
+4. `scan_nodes_by_types` - Identify annotation targets
+5. `get_annotations` - Review existing annotations and categories
+6. `set_multiple_annotations` - Create native annotations in batch
+7. `get_annotations` - Verify all annotations are linked
+8. `delete_multiple_nodes` - Remove legacy annotation nodes
+
+## Example conversion
+
+Before:
+```
+[Text node: "1"] ----→ [Button: "Submit"]
+[Text node: "This button submits the form"]
+
+[Text node: "2"] ----→ [Input field]
+[Text node: "Email validation required"]
+```
+
+After:
+```
+Native annotation on "Submit" button:
+  Category: NOTE
+  Text: "This button submits the form"
+
+Native annotation on Input field:
+  Category: IMPORTANT
+  Text: "Email validation required"
+```
+
+## Related tools
+
+- [`get_annotations`](/api-reference/tools/get-annotations) - Get all annotations in the document
+- [`set_annotation`](/api-reference/tools/set-annotation) - Create or update a single annotation
+- [`set_multiple_annotations`](/api-reference/tools/set-multiple-annotations) - Batch create/update annotations
+- [`scan_text_nodes`](/api-reference/tools/scan-text-nodes) - Find text nodes with chunking
+- [`scan_nodes_by_types`](/api-reference/tools/scan-nodes-by-types) - Find nodes by type
+- [`delete_multiple_nodes`](/api-reference/tools/delete-multiple-nodes) - Clean up legacy annotations
+
+## Related prompts
+
+- [`annotation_conversion_strategy`](/api-reference/prompts/annotation-conversion-strategy) - Strategy for converting manual annotations to native annotations

@@ -1,0 +1,76 @@
+---
+title: move_node
+description: Move a node to a new position in Figma
+---
+
+Move a node to a new position in the Figma canvas by specifying new X and Y coordinates.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to move
+</ParamField>
+
+<ParamField path="x" type="number" required>
+  New X position (horizontal coordinate on the canvas)
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  New Y position (vertical coordinate on the canvas)
+</ParamField>
+
+## Response
+
+Returns the name of the moved node and its new position coordinates.
+
+```json
+{
+  "name": "Button"
+}
+```
+
+## Examples
+
+### Move a button to the top-left
+
+```typescript
+await move_node({
+  nodeId: "123:456",
+  x: 0,
+  y: 0
+});
+```
+
+### Position an element in the center
+
+```typescript
+// Assuming a 1920x1080 canvas
+await move_node({
+  nodeId: "789:012",
+  x: 960,
+  y: 540
+});
+```
+
+### Offset an element from its original position
+
+```typescript
+// First get the node's current position
+const nodeInfo = await get_node_info({ nodeId: "123:456" });
+const currentX = nodeInfo.absoluteBoundingBox.x;
+const currentY = nodeInfo.absoluteBoundingBox.y;
+
+// Move it 100px right and 50px down
+await move_node({
+  nodeId: "123:456",
+  x: currentX + 100,
+  y: currentY + 50
+});
+```
+
+## Notes
+
+- Coordinates are in pixels and relative to the canvas origin (top-left)
+- Moving a parent frame will move all its children with it
+- For precise alignment, use `get_node_info` to retrieve current position first
+- Negative coordinates are allowed and will position nodes outside the visible canvas area

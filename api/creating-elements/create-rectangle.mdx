@@ -1,0 +1,100 @@
+---
+title: create_rectangle
+description: Create a new rectangle in Figma
+---
+
+## Overview
+
+Create a new rectangle in Figma with specified position, size, and optional properties.
+
+## Parameters
+
+<ParamField path="x" type="number" required>
+  X position of the rectangle
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position of the rectangle
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  Width of the rectangle
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  Height of the rectangle
+</ParamField>
+
+<ParamField path="name" type="string">
+  Optional name for the rectangle. Defaults to "Rectangle" if not provided.
+</ParamField>
+
+<ParamField path="parentId" type="string">
+  Optional parent node ID to append the rectangle to. If not provided, the rectangle is created in the current selection or page.
+</ParamField>
+
+## Return Type
+
+Returns an object with:
+- `name` (string): The name of the created rectangle
+- `id` (string): The unique ID of the created rectangle
+
+## Usage Examples
+
+### Basic Rectangle
+
+Create a simple rectangle at position (100, 100) with size 200x150:
+
+```typescript
+await mcp.callTool("create_rectangle", {
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 150
+});
+```
+
+### Named Rectangle
+
+Create a rectangle with a custom name:
+
+```typescript
+await mcp.callTool("create_rectangle", {
+  x: 50,
+  y: 50,
+  width: 300,
+  height: 200,
+  name: "Hero Image Container"
+});
+```
+
+### Rectangle Inside a Frame
+
+Create a rectangle as a child of an existing frame:
+
+```typescript
+// First create a frame
+const frame = await mcp.callTool("create_frame", {
+  x: 0,
+  y: 0,
+  width: 500,
+  height: 400,
+  name: "Card Container"
+});
+
+// Then create a rectangle inside the frame
+await mcp.callTool("create_rectangle", {
+  x: 20,
+  y: 20,
+  width: 460,
+  height: 150,
+  name: "Card Background",
+  parentId: frame.id
+});
+```
+
+## Notes
+
+- After creation, you can use the returned ID with other tools like `set_fill_color`, `set_stroke_color`, or `set_corner_radius` to style the rectangle
+- Position coordinates are relative to the parent container if `parentId` is specified
+- The rectangle is created with default styling (no fill, no stroke) - use styling tools to customize appearance

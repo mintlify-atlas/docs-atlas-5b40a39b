@@ -1,0 +1,74 @@
+---
+title: "get_selection"
+description: "Get information about the current selection in Figma"
+---
+
+## Overview
+
+Retrieves information about the currently selected nodes in Figma, including their IDs, names, types, and basic properties.
+
+## Parameters
+
+This tool does not require any parameters.
+
+## Return Value
+
+Returns an array of selected nodes:
+
+```json
+[
+  {
+    "id": "node-id",
+    "name": "Frame 1",
+    "type": "FRAME",
+    "x": 100,
+    "y": 200,
+    "width": 300,
+    "height": 400
+  }
+]
+```
+
+If no nodes are selected, returns an empty array.
+
+## Usage Example
+
+```typescript
+const selection = await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "get_selection",
+  arguments: {}
+});
+
+if (selection.length === 0) {
+  console.log("No nodes selected");
+} else {
+  console.log(`Selected ${selection.length} node(s)`);
+  selection.forEach(node => {
+    console.log(`- ${node.name} (${node.type})`);
+  });
+}
+```
+
+## Best Practices
+
+<Warning>
+  Always check if the selection is empty before performing operations. An empty selection will cause most modification tools to fail.
+</Warning>
+
+<Note>
+  Use `get_selection` before calling modification tools to confirm you're working with the correct nodes.
+</Note>
+
+## Common Use Cases
+
+- Verifying which nodes are selected before modifications
+- Getting IDs of selected nodes for batch operations
+- Checking selection state in workflows
+- Validating user selection before operations
+
+## Related Tools
+
+- [read_my_design](/api/document-selection/read-my-design) - Get detailed information about selection
+- [get_node_info](/api/document-selection/get-node-info) - Get detailed info for a specific node
+- [set_selections](/api/document-selection/set-selections) - Change the current selection

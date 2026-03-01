@@ -1,0 +1,569 @@
+---
+title: "Handling Prototype Flows"
+description: "Best practices for visualizing and working with Figma prototype reactions"
+---
+
+## Overview
+
+Figma's prototype feature uses "reactions" to define interactions and navigation flows. The Talk to Figma MCP provides tools to extract these reactions and visualize them as connector lines, making prototype flows more visible and easier to document.
+
+### Available Tools
+
+- `get_reactions` - Extract prototype reactions from nodes
+- `set_default_connector` - Set connector style for visualization
+- `create_connections` - Create visual connector lines
+
+## Prototype Visualization Workflow
+
+The process of visualizing prototype flows involves:
+
+1. Preparation and context gathering
+2. Extract reactions from prototype nodes
+3. Set default connector style
+4. Transform reactions to connection objects
+5. Create visual connector lines
+6. Verify and document
+
+<Tip>
+Visualizing prototype flows as connectors is especially useful for documentation, stakeholder presentations, and design handoff to developers.
+</Tip>
+
+## Step 1: Preparation
+
+### Understand Your Prototype
+
+Before extracting reactions, gather context:
+
+```typescript
+// Get current selection or frame
+const selection = await get_selection();
+const frameId = selection[0].id;
+
+// Get detailed node information
+const designInfo = await read_my_design();
+```
+
+### Identify Prototype Nodes
+
+Prototype reactions are typically attached to:
+
+- Interactive components (buttons, links)
+- Screen frames (for auto-advance)
+- Hotspot layers
+- Component instances with interactions
+
+<Note>
+Not all nodes have reactions. Focus on interactive elements and navigation triggers.
+</Note>
+
+## Step 2: Extract Reactions
+
+### Get Reactions from Nodes
+
+Use `get_reactions` to extract all prototype interactions:
+
+```typescript
+// Get reactions from selected nodes
+const reactionsData = await get_reactions({
+  nodeIds: ["button-id", "link-id", "screen-id"]
+});
+```
+
+<Warning>
+After calling `get_reactions`, you **MUST** process the output using the reaction-to-connector strategy and call `create_connections`. This is a required workflow step.
+</Warning>
+
+### Understanding Reaction Data
+
+The response contains nodes with their reactions:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "button-id",
+      "name": "Login Button",
+      "reactions": [
+        {
+          "trigger": { "type": "ON_CLICK" },
+          "action": {
+            "type": "NAVIGATE",
+            "destinationId": "home-screen-id",
+            "navigationTransition": {
+              "type": "DISSOLVE",
+              "duration": 300
+            },
+            "preserveScrollPosition": false
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Common Reaction Types
+
+#### Trigger Types
+
+- `ON_CLICK` - Click/tap interaction
+- `ON_HOVER` - Mouse hover
+- `ON_PRESS` - Touch press
+- `ON_DRAG` - Drag interaction
+- `MOUSE_ENTER` - Mouse enters bounds
+- `MOUSE_LEAVE` - Mouse leaves bounds
+- `MOUSE_UP` - Mouse button release
+- `MOUSE_DOWN` - Mouse button press
+- `AFTER_TIMEOUT` - Auto-advance after delay
+
+#### Action Types
+
+**Navigation Actions** (create connectors):
+- `NAVIGATE` - Navigate to another screen
+- `OPEN_OVERLAY` - Open overlay on top
+- `SWAP_OVERLAY` - Swap current overlay
+- `SCROLL_TO` - Scroll to target node
+
+**State Actions** (don't create connectors):
+- `CHANGE_TO` - Change component state
+- `CLOSE_OVERLAY` - Close current overlay
+- `BACK` - Navigate back
+- `SET_VARIABLE` - Set variable value
+
+<Tip>
+Only create connectors for actions that involve navigation to another node (actions with `destinationId`).
+</Tip>
+
+## Step 3: Set Default Connector
+
+### Check for Existing Connector
+
+First, verify if a default connector is already set:
+
+```typescript
+// Call without connectorId to check status
+const result = await set_default_connector();
+
+// Check response message
+if (result.message.includes("already set")) {
+  console.log("Default connector ready");
+} else {
+  console.log("Need to set up connector");
+}
+```
+
+### Setting Up Connector Style
+
+If no default connector exists, you need to manually set one:
+
+1. **In FigJam**: Create and style a connector line
+2. **Copy** the connector (Cmd/Ctrl + C)
+3. **Switch to Figma**: Paste onto your design page
+4. **Select** the pasted connector
+5. **Run**: `set_default_connector` with the selected node
+
+```typescript
+// After selecting the pasted connector in Figma
+await set_default_connector({
+  connectorId: "selected-connector-id"
+});
+```
+
+<Warning>
+You **cannot** proceed with `create_connections` until a default connector is set. The connector must be copied from FigJam.
+</Warning>
+
+### Why FigJam Connectors?
+
+FigJam connectors provide:
+- Visual line styling options
+- Arrow styles and directions
+- Color customization
+- Text label support
+- Consistent appearance across connections
+
+## Step 4: Transform Reactions to Connections
+
+### Filter Valid Reactions
+
+Keep only reactions that should become connectors:
+
+```typescript
+function filterValidReactions(reactionsData) {
+  const connections = [];
+  
+  for (const node of reactionsData.nodes) {
+    for (const reaction of node.reactions || []) {
+      const { trigger, action } = reaction;
+      
+      // Filter for navigation actions with destinations
+      const validActionTypes = ['NAVIGATE', 'OPEN_OVERLAY', 'SWAP_OVERLAY', 'SCROLL_TO'];
+      
+      if (validActionTypes.includes(action.type) && action.destinationId) {
+        connections.push({
+          sourceNodeId: node.id,
+          sourceName: node.name,
+          destinationNodeId: action.destinationId,
+          actionType: action.type,
+          triggerType: trigger.type,
+          transition: action.navigationTransition
+        });
+      }
+    }
+  }
+  
+  return connections;
+}
+```
+
+### Generate Descriptive Labels
+
+Create meaningful text labels for each connection:
+
+```typescript
+function generateConnectorLabel(connection) {
+  const { triggerType, actionType, sourceName } = connection;
+  
+  // Format trigger type
+  const trigger = triggerType.replace(/_/g, ' ').toLowerCase();
+  
+  // Format action type
+  let action = actionType.toLowerCase().replace(/_/g, ' ');
+  
+  // Create descriptive label
+  if (actionType === 'NAVIGATE') {
+    return `On ${trigger}: navigate to destination`;
+  }
+  
+  if (actionType === 'OPEN_OVERLAY') {
+    return `On ${trigger}: open overlay`;
+  }
+  
+  if (actionType === 'SWAP_OVERLAY') {
+    return `On ${trigger}: swap overlay`;
+  }
+  
+  return `On ${trigger}: ${action}`;
+}
+```
+
+### Enhanced Label Generation
+
+For more detailed labels, include destination names:
+
+```typescript
+async function generateDetailedLabel(connection, destinationInfo) {
+  const { triggerType, actionType, sourceName } = connection;
+  const destName = destinationInfo?.name || 'target';
+  
+  const trigger = triggerType.replace(/_/g, ' ').toLowerCase();
+  
+  const labelMap = {
+    'NAVIGATE': `On ${trigger}, navigate to ${destName}`,
+    'OPEN_OVERLAY': `On ${trigger}, open ${destName} overlay`,
+    'SWAP_OVERLAY': `On ${trigger}, swap to ${destName}`,
+    'SCROLL_TO': `On ${trigger}, scroll to ${destName}`
+  };
+  
+  return labelMap[actionType] || `On ${trigger}: ${actionType}`;
+}
+```
+
+<Tip>
+Include transition information in labels for additional context (e.g., "Navigate with dissolve (300ms)").
+</Tip>
+
+### Prepare Connections Array
+
+Create the final array for `create_connections`:
+
+```typescript
+async function prepareConnections(reactionsData) {
+  // Filter valid reactions
+  const validReactions = filterValidReactions(reactionsData);
+  
+  // Optional: Get destination node names for better labels
+  const destinationIds = [...new Set(validReactions.map(r => r.destinationNodeId))];
+  const destinationInfos = await Promise.all(
+    destinationIds.map(id => get_node_info({ nodeId: id }))
+  );
+  
+  const destinationMap = Object.fromEntries(
+    destinationInfos.map((info, i) => [destinationIds[i], info])
+  );
+  
+  // Generate connection objects
+  const connections = validReactions.map(reaction => ({
+    startNodeId: reaction.sourceNodeId,
+    endNodeId: reaction.destinationNodeId,
+    text: generateDetailedLabel(reaction, destinationMap[reaction.destinationNodeId])
+  }));
+  
+  return connections;
+}
+```
+
+## Step 5: Create Visual Connectors
+
+### Execute Connection Creation
+
+With connections prepared and default connector set:
+
+```typescript
+// Create all connectors at once
+const result = await create_connections({
+  connections: [
+    {
+      startNodeId: "button-1-id",
+      endNodeId: "screen-2-id",
+      text: "On click, navigate to Home Screen"
+    },
+    {
+      startNodeId: "button-2-id",
+      endNodeId: "screen-3-id",
+      text: "On click, navigate to Settings"
+    },
+    {
+      startNodeId: "link-id",
+      endNodeId: "overlay-id",
+      text: "On hover, open Help overlay"
+    }
+  ]
+});
+```
+
+<Note>
+Connectors are created as visual representations on the canvas. They don't modify the actual prototype reactions.
+</Note>
+
+### Batch Processing
+
+For large prototype flows, process in batches:
+
+```typescript
+async function createConnectorsInBatches(connections, batchSize = 10) {
+  for (let i = 0; i < connections.length; i += batchSize) {
+    const batch = connections.slice(i, i + batchSize);
+    
+    await create_connections({ connections: batch });
+    
+    console.log(`Created ${i + batch.length}/${connections.length} connectors`);
+  }
+}
+```
+
+## Step 6: Verify and Document
+
+### Visual Verification
+
+After creating connectors:
+
+1. Review connector placement in Figma
+2. Verify labels are readable and accurate
+3. Check connector routing between nodes
+4. Adjust positioning if needed
+
+### Export Flow Diagram
+
+```typescript
+// Export frame with connectors for documentation
+await export_node_as_image({
+  nodeId: "prototype-frame-id",
+  format: "PNG",
+  scale: 1.0
+});
+```
+
+## Complete Workflow Example
+
+### Full Implementation
+
+```typescript
+// Step 1: Preparation
+const selection = await get_selection();
+const frameIds = selection.map(s => s.id);
+
+// Get all interactive nodes
+const interactiveNodes = await scan_nodes_by_types({
+  nodeId: frameIds[0],
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+
+const nodeIds = interactiveNodes.matchingNodes.map(n => n.id);
+
+// Step 2: Extract reactions
+const reactionsData = await get_reactions({ nodeIds });
+
+// Step 3: Check/set default connector
+const connectorStatus = await set_default_connector();
+
+if (!connectorStatus.message.includes("already set")) {
+  console.log("Please copy a FigJam connector and select it, then run set_default_connector with the ID");
+  // Exit or wait for user action
+  return;
+}
+
+// Step 4: Transform reactions
+const connections = await prepareConnections(reactionsData);
+
+console.log(`Preparing to create ${connections.length} connectors`);
+
+// Step 5: Create connectors
+await create_connections({ connections });
+
+console.log("Prototype flow visualization complete!");
+
+// Step 6: Export for documentation
+await export_node_as_image({
+  nodeId: frameIds[0],
+  format: "PNG",
+  scale: 0.5
+});
+```
+
+## Advanced Use Cases
+
+### Filter by Trigger Type
+
+Create connectors only for specific interaction types:
+
+```typescript
+const clickOnlyConnections = connections.filter(
+  c => c.triggerType === 'ON_CLICK'
+);
+
+await create_connections({ connections: clickOnlyConnections });
+```
+
+### Group by Flow
+
+Organize connectors by user journey:
+
+```typescript
+const flows = {
+  login: connections.filter(c => c.sourceName.includes('Login')),
+  checkout: connections.filter(c => c.sourceName.includes('Checkout')),
+  settings: connections.filter(c => c.sourceName.includes('Settings'))
+};
+
+// Create connectors for each flow separately
+for (const [flowName, flowConnections] of Object.entries(flows)) {
+  console.log(`Creating ${flowName} flow connectors`);
+  await create_connections({ connections: flowConnections });
+}
+```
+
+### Color-Code by Action Type
+
+While `create_connections` uses the default connector style, you can prepare documentation showing different action types:
+
+```typescript
+function categorizeConnections(connections) {
+  return {
+    navigation: connections.filter(c => c.actionType === 'NAVIGATE'),
+    overlays: connections.filter(c => c.actionType.includes('OVERLAY')),
+    scrolls: connections.filter(c => c.actionType === 'SCROLL_TO')
+  };
+}
+```
+
+## Best Practices
+
+### Connector Organization
+
+- Create connectors on a separate page/frame for clarity
+- Use consistent labeling conventions
+- Group related flows together
+- Keep connector density manageable (< 20 per frame)
+
+### Label Guidelines
+
+- Be concise but descriptive
+- Include trigger and action type
+- Mention destination when relevant
+- Use consistent formatting
+
+### Performance
+
+- Process large prototypes in batches
+- Filter unnecessary reactions before creating connectors
+- Reuse connector style across projects
+- Clean up old connectors before regenerating
+
+<Warning>
+Creating too many connectors at once can slow down Figma. Process in batches of 10-20 for optimal performance.
+</Warning>
+
+### Documentation
+
+- Export flow diagrams for stakeholders
+- Document connector color meanings if using multiple styles
+- Maintain legend for action type conventions
+- Update connectors when prototype changes
+
+## Troubleshooting
+
+### No Reactions Found
+
+- Verify nodes have prototype interactions set
+- Check you're scanning the correct frame/nodes
+- Ensure prototype mode is properly configured in Figma
+
+### Cannot Create Connections
+
+**Error: No default connector set**
+- Must copy connector from FigJam first
+- Paste connector onto current page
+- Select and run `set_default_connector`
+
+### Connectors Not Appearing
+
+- Verify WebSocket connection is active
+- Check source and destination node IDs are valid
+- Ensure nodes haven't been deleted
+- Verify you're viewing the correct page
+
+### Wrong Connector Positions
+
+- Node positions may have changed
+- Connector routing is automatic
+- Consider manually adjusting in Figma after creation
+
+## Prototype Flow Checklist
+
+- [ ] Identify interactive prototype nodes
+- [ ] Use `get_reactions` to extract interactions
+- [ ] Check/set default connector with `set_default_connector`
+- [ ] Filter reactions for valid navigation actions
+- [ ] Generate descriptive connector labels
+- [ ] Prepare connections array with startNodeId, endNodeId, text
+- [ ] Create connectors with `create_connections`
+- [ ] Verify visual representation
+- [ ] Export flow diagram for documentation
+- [ ] Update when prototype changes
+
+## Integration with Design Workflow
+
+### Design Review
+
+Use prototype connectors during reviews to:
+- Visualize user journeys
+- Identify missing interactions
+- Document navigation patterns
+- Communicate flows to stakeholders
+
+### Developer Handoff
+
+Connector diagrams help developers understand:
+- Navigation logic
+- Interaction triggers
+- Screen relationships
+- User flow sequences
+
+### Documentation
+
+Include flow diagrams in:
+- Design specifications
+- User flow documentation
+- Product requirements
+- Technical documentation

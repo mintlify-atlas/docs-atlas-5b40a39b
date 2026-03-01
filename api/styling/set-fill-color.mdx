@@ -1,0 +1,74 @@
+---
+title: 'set_fill_color'
+description: 'Set the fill color of a node in Figma'
+icon: 'fill-drip'
+---
+
+Sets the fill color of a Figma node. Works with text nodes and frame nodes.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to modify
+</ParamField>
+
+<ParamField path="r" type="number" required>
+  Red component (0-1 range)
+</ParamField>
+
+<ParamField path="g" type="number" required>
+  Green component (0-1 range)
+</ParamField>
+
+<ParamField path="b" type="number" required>
+  Blue component (0-1 range)
+</ParamField>
+
+<ParamField path="a" type="number">
+  Alpha/transparency component (0-1 range). Defaults to 1 (fully opaque)
+</ParamField>
+
+<Note>
+  Figma uses RGBA values in the 0-1 range, not 0-255. For example, pure red is `{r: 1, g: 0, b: 0}`, not `{r: 255, g: 0, b: 0}`.
+</Note>
+
+## Response
+
+Returns the name of the modified node and confirms the color change.
+
+## Examples
+
+### Set solid red fill
+
+```json
+{
+  "nodeId": "123:456",
+  "r": 1,
+  "g": 0,
+  "b": 0,
+  "a": 1
+}
+```
+
+### Set semi-transparent blue fill
+
+```json
+{
+  "nodeId": "123:456",
+  "r": 0,
+  "g": 0.5,
+  "b": 1,
+  "a": 0.7
+}
+```
+
+### Set white fill (default alpha)
+
+```json
+{
+  "nodeId": "123:456",
+  "r": 1,
+  "g": 1,
+  "b": 1
+}
+```

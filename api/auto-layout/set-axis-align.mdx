@@ -1,0 +1,160 @@
+---
+title: set_axis_align
+description: Set primary and counter axis alignment for an auto-layout frame in Figma
+---
+
+## Overview
+
+Control how children are aligned within an auto-layout frame. The primary axis runs in the direction of the layout (horizontal or vertical), while the counter axis runs perpendicular to it.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the frame to modify
+</ParamField>
+
+<ParamField path="primaryAxisAlignItems" type="enum">
+  Primary axis alignment (distribution along the layout direction)
+  
+  **For horizontal layouts:**
+  - `MIN` - Align left
+  - `MAX` - Align right
+  - `CENTER` - Center horizontally
+  - `SPACE_BETWEEN` - Distribute with space between items
+  
+  **For vertical layouts:**
+  - `MIN` - Align top
+  - `MAX` - Align bottom
+  - `CENTER` - Center vertically
+  - `SPACE_BETWEEN` - Distribute with space between items
+  
+  <Warning>
+    When set to `SPACE_BETWEEN`, the `itemSpacing` property is ignored as children will be evenly spaced.
+  </Warning>
+</ParamField>
+
+<ParamField path="counterAxisAlignItems" type="enum">
+  Counter axis alignment (alignment perpendicular to the layout direction)
+  
+  **For horizontal layouts:**
+  - `MIN` - Align top
+  - `MAX` - Align bottom
+  - `CENTER` - Center vertically
+  - `BASELINE` - Align text baselines
+  
+  **For vertical layouts:**
+  - `MIN` - Align left
+  - `MAX` - Align right
+  - `CENTER` - Center horizontally
+  - `BASELINE` - Align text baselines
+</ParamField>
+
+## Response
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Set axis alignment (primary: CENTER, counter: CENTER) for frame \"Button Group\""
+    }
+  ]
+}
+```
+
+## Examples
+
+### Center-aligned button
+
+```typescript
+// Horizontally center text, vertically center content
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_axis_align",
+  arguments: {
+    nodeId: "123:456", // Horizontal layout button
+    primaryAxisAlignItems: "CENTER",
+    counterAxisAlignItems: "CENTER"
+  }
+});
+```
+
+### Space-between navigation
+
+```typescript
+// Distribute nav items with space between them
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_axis_align",
+  arguments: {
+    nodeId: "123:456", // Horizontal nav bar
+    primaryAxisAlignItems: "SPACE_BETWEEN",
+    counterAxisAlignItems: "CENTER"
+  }
+});
+```
+
+### Left-aligned form fields
+
+```typescript
+// Align form fields to the left, stretch full width
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_axis_align",
+  arguments: {
+    nodeId: "123:456", // Vertical form container
+    primaryAxisAlignItems: "MIN",
+    counterAxisAlignItems: "MIN"
+  }
+});
+```
+
+### Text baseline alignment
+
+```typescript
+// Align text labels by their baseline
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_axis_align",
+  arguments: {
+    nodeId: "123:456", // Horizontal layout with text
+    primaryAxisAlignItems: "MIN",
+    counterAxisAlignItems: "BASELINE"
+  }
+});
+```
+
+## Understanding Axes
+
+### Horizontal Layout (`HORIZONTAL`)
+- **Primary axis**: Left to right →
+- **Counter axis**: Top to bottom ↓
+
+### Vertical Layout (`VERTICAL`)
+- **Primary axis**: Top to bottom ↓
+- **Counter axis**: Left to right →
+
+## Use Cases
+
+**Centered buttons**: `primaryAxisAlignItems: CENTER`, `counterAxisAlignItems: CENTER`
+
+**Navigation bars**: `primaryAxisAlignItems: SPACE_BETWEEN` to distribute items evenly
+
+**Form layouts**: `primaryAxisAlignItems: MIN` to stack fields from top, `counterAxisAlignItems: MIN` to left-align
+
+**Card headers**: `counterAxisAlignItems: CENTER` to vertically center icon and title
+
+**Text rows**: `counterAxisAlignItems: BASELINE` to align text properly
+
+## Design Tips
+
+- `SPACE_BETWEEN` is perfect for distributing navigation items or card footers
+- Use `CENTER`/`CENTER` for buttons and call-to-action elements
+- `BASELINE` alignment ensures text looks aligned even with different font sizes
+- Combine with `set_layout_sizing` to control how children fill available space
+
+## Related Tools
+
+- [set_layout_mode](/api/auto-layout/set-layout-mode) - Set the layout direction
+- [set_item_spacing](/api/auto-layout/set-item-spacing) - Control spacing between children
+- [set_layout_sizing](/api/auto-layout/set-layout-sizing) - Control how frames resize

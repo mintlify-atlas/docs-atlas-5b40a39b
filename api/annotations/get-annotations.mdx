@@ -1,0 +1,114 @@
+---
+title: "get_annotations"
+description: "Get all annotations in the current document or specific node"
+---
+
+Retrieves annotation data from Figma's native annotation system. Annotations can be filtered to a specific node and optionally include category information.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  Node ID to get annotations for a specific node and its children
+</ParamField>
+
+<ParamField path="includeCategories" type="boolean" default={true}>
+  Whether to include category information in the response. Categories define the type of annotation (e.g., "Design", "Development", "Content").
+</ParamField>
+
+## Response
+
+Returns a JSON object containing:
+
+- **annotations**: Array of annotation objects with:
+  - `id`: Unique annotation identifier
+  - `nodeId`: ID of the annotated node
+  - `labelMarkdown`: Annotation text in markdown format (supports **bold**, *italic*, links, etc.)
+  - `categoryId`: Optional category identifier
+  - `properties`: Array of additional annotation properties
+
+- **categories** (when `includeCategories: true`): Array of available annotation categories with:
+  - `id`: Category identifier
+  - `name`: Category display name
+  - `color`: Category color
+
+## Usage
+
+<CodeGroup>
+```typescript Get all annotations with categories
+const result = await get_annotations({
+  nodeId: "123:456",
+  includeCategories: true
+});
+```
+
+```typescript Get annotations without categories
+const result = await get_annotations({
+  nodeId: "123:456",
+  includeCategories: false
+});
+```
+</CodeGroup>
+
+## Use Cases
+
+### Audit existing annotations
+Before adding new annotations, scan to see what's already annotated:
+
+```typescript
+const existingAnnotations = await get_annotations({
+  nodeId: selectedFrameId,
+  includeCategories: true
+});
+
+console.log(`Found ${existingAnnotations.annotations.length} annotations`);
+console.log(`Available categories:`, existingAnnotations.categories);
+```
+
+### Find annotation targets
+Use with `scan_nodes_by_types` to identify which elements need annotations:
+
+```typescript
+// Get current annotations
+const { annotations, categories } = await get_annotations({
+  nodeId: frameId,
+  includeCategories: true
+});
+
+// Find all potential annotation targets
+const targets = await scan_nodes_by_types({
+  nodeId: frameId,
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+
+// Find unannotated elements
+const annotatedNodeIds = new Set(annotations.map(a => a.nodeId));
+const unannotated = targets.matchingNodes.filter(
+  node => !annotatedNodeIds.has(node.id)
+);
+```
+
+## Markdown Support
+
+Annotation labels support markdown formatting:
+
+- **Bold text**: `**bold**`
+- *Italic text*: `*italic*`
+- Links: `[link text](https://example.com)`
+- Code: `` `code` ``
+- Lists and more
+
+This allows rich, formatted annotation content directly in Figma.
+
+## Related Tools
+
+<CardGroup cols={2}>
+  <Card title="set_annotation" icon="pen" href="/api/annotations/set-annotation">
+    Create or update a single annotation
+  </Card>
+  <Card title="set_multiple_annotations" icon="pen-to-square" href="/api/annotations/set-multiple-annotations">
+    Batch create/update multiple annotations
+  </Card>
+  <Card title="scan_nodes_by_types" icon="magnifying-glass" href="/api/annotations/scan-nodes-by-types">
+    Find nodes that need annotations
+  </Card>
+</CardGroup>

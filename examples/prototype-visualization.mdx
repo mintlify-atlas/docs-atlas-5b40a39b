@@ -1,0 +1,285 @@
+---
+title: 'Visualizing prototype flows'
+description: 'Convert Figma prototype reactions (interaction noodles) into FigJam connector lines for clear visual flow mapping and documentation.'
+keywords: ['prototype', 'flows', 'visualization', 'figjam', 'connectors']
+icon: 'diagram-project'
+---
+
+## Overview
+
+Figma prototypes use invisible "reactions" (interaction noodles) to define navigation between screens. While these work great for interactive prototypes, they can be hard to see and document. This workflow converts prototype reactions into visible FigJam connector lines, creating clear visual flow diagrams.
+
+<Info>
+This is especially useful for:
+- Creating flow documentation
+- Presenting user journeys to stakeholders
+- Identifying navigation gaps
+- Generating clickable flow diagrams in FigJam
+</Info>
+
+## Use cases
+
+- **Flow documentation**: Create visual diagrams of app navigation for handoff
+- **Stakeholder presentations**: Make prototype flows visible to non-designers
+- **User journey mapping**: Visualize complete user paths through the app
+- **Design reviews**: Highlight interaction patterns and navigation structure
+- **QA reference**: Provide clear flow diagrams for testing teams
+- **Information architecture**: Document navigation hierarchy visually
+
+## How it works
+
+The visualization process extracts prototype reaction data from your design frames and generates corresponding FigJam connector lines that visually represent the interaction flow.
+
+## Workflow
+
+<Steps>
+  <Step title="Prepare your prototype">
+    Ensure your Figma file has prototype reactions set up between frames. You can work with:
+    - Click/tap interactions
+    - Hover states
+    - Navigation flows
+    - Back actions
+
+    Use `get_document_info` to understand your prototype structure:
+
+    ```javascript
+    get_document_info()
+    ```
+  </Step>
+
+  <Step title="Extract prototype reactions">
+    Use `get_reactions` to extract all prototype flows with visual highlight animations.
+
+    ```javascript
+    get_reactions()
+    ```
+
+    This returns an array of reactions with:
+    - Source node (the interactive element)
+    - Destination node (the target frame)
+    - Trigger type (ON_CLICK, ON_HOVER, etc.)
+    - Transition animation details
+
+    The tool also highlights source nodes in Figma so you can see which elements have reactions.
+  </Step>
+
+  <Step title="Set default connector style">
+    Copy a FigJam connector line with your desired styling (color, arrow style, stroke weight) and set it as the default.
+
+    ```javascript
+    set_default_connector()
+    ```
+
+    <Note>
+    You must copy a connector before running this command. The copied connector's style will be used for all generated connections.
+    </Note>
+  </Step>
+
+  <Step title="Generate connector lines">
+    Use `create_connections` to generate FigJam connector lines based on the prototype flows.
+
+    ```javascript
+    create_connections({
+      reactions: extractedReactions
+    })
+    ```
+
+    You can also create custom connections by providing a manual mapping:
+
+    ```javascript
+    create_connections({
+      customConnections: [
+        { sourceId: "node-1", targetId: "node-2" },
+        { sourceId: "node-2", targetId: "node-3" }
+      ]
+    })
+    ```
+  </Step>
+
+  <Step title="Review and refine">
+    Check the generated connectors in your FigJam file. You can:
+    - Adjust connector paths manually if needed
+    - Add labels to connectors
+    - Organize connectors into groups
+    - Color-code different flow types
+  </Step>
+</Steps>
+
+## Connector styling
+
+Before generating connectors, customize a FigJam connector line with:
+
+<CardGroup cols={2}>
+  <Card title="Color" icon="palette">
+    Choose colors to represent different flow types (e.g., primary flows in blue, error states in red).
+  </Card>
+  <Card title="Arrow style" icon="arrow-right">
+    Select single-ended, double-ended, or no arrows based on your needs.
+  </Card>
+  <Card title="Stroke weight" icon="weight-scale">
+    Use different weights to show importance or frequency of paths.
+  </Card>
+  <Card title="Line style" icon="minus">
+    Solid lines for primary flows, dashed for optional paths.
+  </Card>
+</CardGroup>
+
+## Advanced techniques
+
+<Tabs>
+  <Tab title="Flow categorization">
+    Generate multiple sets of connectors with different styles for different flow types:
+
+    1. Extract all reactions
+    2. Filter by trigger type (ON_CLICK vs ON_HOVER)
+    3. Set different connector styles for each type
+    4. Generate connectors for each category
+
+    ```javascript
+    const clickFlows = reactions.filter(r => r.trigger === 'ON_CLICK');
+    const hoverFlows = reactions.filter(r => r.trigger === 'ON_HOVER');
+    
+    // Set blue connector for clicks
+    set_default_connector();
+    create_connections({ reactions: clickFlows });
+    
+    // Set green connector for hovers
+    set_default_connector();
+    create_connections({ reactions: hoverFlows });
+    ```
+  </Tab>
+
+  <Tab title="Custom flow mapping">
+    Create additional connections that aren't in the prototype:
+
+    ```javascript
+    create_connections({
+      customConnections: [
+        { sourceId: "splash-screen", targetId: "onboarding-1" },
+        { sourceId: "onboarding-3", targetId: "home" }
+      ]
+    })
+    ```
+
+    Useful for:
+    - Showing conditional paths
+    - Documenting error flows
+    - Mapping data relationships
+  </Tab>
+
+  <Tab title="User journey highlighting">
+    Highlight specific user journeys by creating connectors only for paths along that journey:
+
+    ```javascript
+    const signupJourney = [
+      { sourceId: "landing", targetId: "signup-form" },
+      { sourceId: "signup-form", targetId: "verification" },
+      { sourceId: "verification", targetId: "welcome" }
+    ];
+    
+    // Use a distinct color for this journey
+    set_default_connector();
+    create_connections({ customConnections: signupJourney });
+    ```
+  </Tab>
+</Tabs>
+
+## Best practices
+
+<Tip>
+For complex prototypes with many reactions, generate connectors in stages. Start with primary flows, verify them, then add secondary and error flows with different visual styles.
+</Tip>
+
+- **Test connector style first**: Create one manual connection with your desired style before batch generating
+- **Use consistent styling**: Establish a visual language for different flow types
+- **Label connectors**: Add text labels to important transitions for clarity
+- **Organize by layer**: Put connectors on separate layers or frames for easy toggling
+- **Version your flows**: Keep dated copies when updating flow diagrams
+- **Export for documentation**: Use the visual flow diagrams in design specifications
+
+## Tool sequence
+
+1. `join_channel` - Connect to Figma
+2. `get_document_info` - Understand prototype structure
+3. `get_reactions` - Extract all prototype flows with highlights
+4. `set_default_connector` - Define connector style (copy one first)
+5. `create_connections` - Generate connector lines from reactions
+
+## Visualizing different flow types
+
+<AccordionGroup>
+  <Accordion title="Primary navigation flows">
+    Main user paths through the app. Use bold, solid connectors in your primary brand color.
+
+    ```javascript
+    const primaryFlows = reactions.filter(r => 
+      r.trigger === 'ON_CLICK' && !r.destination.name.includes('Error')
+    );
+    ```
+  </Accordion>
+
+  <Accordion title="Error and edge cases">
+    Error states and exceptional flows. Use dashed connectors in red or orange.
+
+    ```javascript
+    const errorFlows = reactions.filter(r => 
+      r.destination.name.includes('Error') || 
+      r.destination.name.includes('404')
+    );
+    ```
+  </Accordion>
+
+  <Accordion title="Back navigation">
+    Return paths and back buttons. Use lighter colored connectors or different arrow styles.
+
+    ```javascript
+    const backFlows = reactions.filter(r => 
+      r.destination.name.includes('Back') ||
+      r.action === 'BACK'
+    );
+    ```
+  </Accordion>
+
+  <Accordion title="Hover and tooltip interactions">
+    Temporary overlays and hover states. Use thin, subtle connectors.
+
+    ```javascript
+    const hoverFlows = reactions.filter(r => 
+      r.trigger === 'ON_HOVER' ||
+      r.destination.name.includes('Tooltip')
+    );
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Example output
+
+After running the visualization workflow, you'll have:
+
+- Clear connector lines between all interactive frames
+- Visual representation of your prototype's navigation structure
+- Easy-to-understand flow diagram for stakeholders
+- Documentation-ready visual assets
+- Basis for user journey mapping exercises
+
+## Integration with FigJam
+
+The generated connectors work seamlessly in FigJam, allowing you to:
+
+- Add sticky notes with annotations
+- Create swimlanes for different user types
+- Build comprehensive journey maps
+- Present flows in workshops or reviews
+- Export as images for documentation
+
+## Related tools
+
+- [`get_reactions`](/api-reference/tools/get-reactions) - Extract prototype reactions with visual highlights
+- [`set_default_connector`](/api-reference/tools/set-default-connector) - Set the default connector style
+- [`create_connections`](/api-reference/tools/create-connections) - Generate FigJam connector lines
+- [`get_document_info`](/api-reference/tools/get-document-info) - Get document structure information
+- [`scan_nodes_by_types`](/api-reference/tools/scan-nodes-by-types) - Find specific frame types
+
+## Related prompts
+
+- [`reaction_to_connector_strategy`](/api-reference/prompts/reaction-to-connector-strategy) - Strategy for converting prototype reactions to connector lines

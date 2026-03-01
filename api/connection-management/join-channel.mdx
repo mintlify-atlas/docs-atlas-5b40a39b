@@ -1,0 +1,144 @@
+---
+title: Join Channel
+description: Join a specific communication channel to enable MCP commands with Figma
+---
+
+## Overview
+
+Establishes a channel-based communication session with the Figma plugin. **This tool must be called before any other Figma operations** to ensure commands are routed to the correct client.
+
+## Channel-Based Communication
+
+The Talk to Figma MCP uses a channel system for isolation:
+
+1. **WebSocket Relay** - Routes messages between the MCP server and Figma plugin
+2. **Channels** - Logical communication spaces that isolate different sessions
+3. **Plugin Connection** - Each Figma plugin instance joins a specific channel
+
+Multiple users or AI agents can work simultaneously by using different channel names.
+
+## Usage
+
+```typescript
+// First command in any session
+const result = await mcp.use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "join_channel",
+  arguments: {
+    channel: "my-design-session"
+  }
+});
+```
+
+## Parameters
+
+<ParamField path="channel" type="string" required>
+  The name of the channel to join. This should match the channel name configured in the Figma plugin UI.
+  
+  **Best practices:**
+  - Use descriptive names (e.g., `homepage-redesign`, `mobile-prototype`)
+  - Keep names simple (alphanumeric and hyphens recommended)
+  - Coordinate channel names between the AI agent and Figma plugin
+</ParamField>
+
+## Response
+
+On success, returns:
+```
+Successfully joined channel: {channel}
+```
+
+On failure, returns an error message indicating:
+- Not connected to WebSocket server
+- Invalid channel name
+- Connection issues
+
+## Workflow
+
+### Step 1: Start WebSocket Relay
+
+The relay server must be running (typically on port 3055):
+
+```bash
+bun socket
+```
+
+### Step 2: Configure Figma Plugin
+
+1. Open the Talk to Figma plugin in Figma
+2. Enter the channel name (e.g., `my-session`)
+3. Click "Connect"
+
+### Step 3: Join from MCP
+
+```typescript
+await mcp.use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "join_channel",
+  arguments: {
+    channel: "my-session"  // Must match Figma plugin
+  }
+});
+```
+
+### Step 4: Execute Commands
+
+After joining, all other tools become available:
+
+```typescript
+// Now you can execute Figma commands
+const doc = await mcp.use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "get_document_info",
+  arguments: {}
+});
+```
+
+## Channel Isolation
+
+Channels provide isolation between sessions:
+
+- Commands sent on `channel-a` only reach plugins connected to `channel-a`
+- Different channels can operate on different Figma files simultaneously
+- Channel switching requires calling `join_channel` again
+
+## Common Errors
+
+### "Not connected to Figma"
+
+**Cause:** WebSocket server is not running or unreachable.
+
+**Solution:** Start the relay server with `bun socket`
+
+### "Must join a channel before sending commands"
+
+**Cause:** Attempting to use other tools before calling `join_channel`.
+
+**Solution:** Always call `join_channel` first in your session.
+
+### No response from Figma
+
+**Cause:** Figma plugin is not connected to the same channel.
+
+**Solution:** Verify the plugin shows "Connected" status and uses the same channel name.
+
+## Architecture
+
+```
+AI Agent (Claude/Cursor)
+       ↓ stdio
+MCP Server (Node.js)
+       ↓ WebSocket
+Relay Server (port 3055)
+       ↓ WebSocket + Channel
+Figma Plugin
+       ↓ Plugin API
+Figma Document
+```
+
+The channel name is embedded in every message to ensure proper routing through the relay.
+
+## Related Tools
+
+- [get_document_info](/api/document/get-document-info) - First command after joining
+- [get_selection](/api/selection/get-selection) - Check current selection

@@ -1,0 +1,209 @@
+---
+title: Design Strategy Prompt
+description: Best practices for creating and modifying Figma designs through MCP
+---
+
+## Overview
+
+The `design_strategy` prompt provides AI agents with comprehensive guidelines for working with Figma designs. It covers document structure, naming conventions, layout hierarchy, and best practices for creating cohesive design systems.
+
+## When to Use
+
+Use this prompt when:
+- Creating new designs from scratch
+- Building complex UI layouts (login screens, dashboards, forms)
+- Establishing naming conventions and hierarchy
+- Planning element creation order
+- Understanding Figma's design principles
+
+## Key Principles
+
+### 1. Start with Document Structure
+
+- Always call `get_document_info()` first to understand the current state
+- Plan your layout hierarchy before creating elements
+- Create main container frames for each screen or section
+
+### 2. Naming Conventions
+
+- Use descriptive, semantic names for all elements
+- Follow consistent patterns:
+  - "Login Screen" for screens
+  - "Logo Container" for grouped elements
+  - "Email Input" for form fields
+- Group related elements with meaningful names
+
+### 3. Layout Hierarchy
+
+**Create parent frames first, then add children:**
+
+```
+Login Screen (main frame)
+├── Logo Container (frame)
+│   └── Logo (image/text)
+├── Welcome Text (text)
+├── Input Container (frame)
+│   ├── Email Input (frame)
+│   │   ├── Email Label (text)
+│   │   └── Email Field (frame)
+│   └── Password Input (frame)
+│       ├── Password Label (text)
+│       └── Password Field (frame)
+├── Login Button (frame)
+│   └── Button Text (text)
+└── Helper Links (frame)
+    ├── Forgot Password (text)
+    └── Don't have account (text)
+```
+
+### 4. Input Fields Structure
+
+- Create a container frame for each input field
+- Include a label text above or inside the input
+- Group related inputs together (username + password)
+
+### 5. Element Creation Tools
+
+- `create_frame()` - For containers and input fields
+- `create_text()` - For labels, button text, and links
+- Set appropriate visual properties:
+  - `fillColor` for backgrounds
+  - `strokeColor` for borders
+  - `fontWeight` for text hierarchy
+
+### 6. Modifying Existing Elements
+
+- Use `set_text_content()` to update text
+- Use `set_fill_color()` to change colors
+- Use `move_node()` and `resize_node()` for adjustments
+
+### 7. Visual Hierarchy
+
+**Position elements in logical reading order (top to bottom):**
+
+- Maintain consistent spacing between elements
+- Use appropriate font sizes:
+  - Larger for headings/welcome text (20-32px)
+  - Medium for input labels (14-16px)
+  - Standard for button text (14-18px)
+  - Smaller for helper text/links (12-14px)
+
+### 8. Best Practices
+
+- Verify each creation with `get_node_info()`
+- Use `parentId` to maintain proper hierarchy
+- Group related elements together in frames
+- Keep consistent spacing and alignment
+
+## Example: Creating a Login Screen
+
+```typescript
+// 1. Get document info
+const docInfo = await get_document_info();
+
+// 2. Create main screen frame
+const screen = await create_frame({
+  x: 0,
+  y: 0,
+  width: 375,
+  height: 812,
+  name: "Login Screen",
+  fillColor: { r: 0.95, g: 0.95, b: 0.95, a: 1 }
+});
+
+// 3. Create logo container
+const logoContainer = await create_frame({
+  x: 20,
+  y: 80,
+  width: 335,
+  height: 100,
+  name: "Logo Container",
+  parentId: screen.id
+});
+
+// 4. Add welcome text
+const welcomeText = await create_text({
+  x: 20,
+  y: 220,
+  text: "Welcome Back",
+  fontSize: 28,
+  fontWeight: 700,
+  name: "Welcome Text",
+  parentId: screen.id
+});
+
+// 5. Create input container
+const inputContainer = await create_frame({
+  x: 20,
+  y: 280,
+  width: 335,
+  height: 140,
+  name: "Input Container",
+  parentId: screen.id
+});
+
+// 6. Create email input with label
+const emailInput = await create_frame({
+  x: 0,
+  y: 0,
+  width: 335,
+  height: 60,
+  name: "Email Input",
+  parentId: inputContainer.id,
+  fillColor: { r: 1, g: 1, b: 1, a: 1 },
+  strokeColor: { r: 0.8, g: 0.8, b: 0.8, a: 1 },
+  strokeWeight: 1
+});
+
+const emailLabel = await create_text({
+  x: 12,
+  y: 20,
+  text: "Email",
+  fontSize: 14,
+  name: "Email Label",
+  parentId: emailInput.id
+});
+
+// 7. Create login button
+const loginButton = await create_frame({
+  x: 20,
+  y: 440,
+  width: 335,
+  height: 50,
+  name: "Login Button",
+  parentId: screen.id,
+  fillColor: { r: 0.2, g: 0.4, b: 1, a: 1 }
+});
+
+const buttonText = await create_text({
+  x: 140,
+  y: 15,
+  text: "Log In",
+  fontSize: 16,
+  fontWeight: 600,
+  fontColor: { r: 1, g: 1, b: 1, a: 1 },
+  name: "Button Text",
+  parentId: loginButton.id
+});
+```
+
+## Color Best Practices
+
+Figma uses RGBA values from 0 to 1:
+
+- **White background:** `{ r: 1, g: 1, b: 1, a: 1 }`
+- **Light gray:** `{ r: 0.95, g: 0.95, b: 0.95, a: 1 }`
+- **Black text:** `{ r: 0, g: 0, b: 0, a: 1 }`
+- **Blue primary:** `{ r: 0.2, g: 0.4, b: 1, a: 1 }`
+- **Border gray:** `{ r: 0.8, g: 0.8, b: 0.8, a: 1 }`
+
+## Related Prompts
+
+- [Read Design Strategy](/api/prompts/read-design-strategy) - For reading existing designs
+- [Text Replacement Strategy](/api/prompts/text-replacement-strategy) - For updating text in designs
+
+## Related Tools
+
+- [create_frame](/api/creation/create-frame)
+- [create_text](/api/creation/create-text)
+- [get_document_info](/api/document/get-document-info)

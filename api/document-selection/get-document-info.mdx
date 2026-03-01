@@ -1,0 +1,61 @@
+---
+title: "get_document_info"
+description: "Get detailed information about the current Figma document"
+---
+
+## Overview
+
+Retrieves comprehensive information about the currently open Figma document, including document metadata, pages, and structure.
+
+## Parameters
+
+This tool does not require any parameters.
+
+## Return Value
+
+Returns a JSON object containing document information:
+
+```json
+{
+  "name": "Document Name",
+  "id": "document-id",
+  "pages": [
+    {
+      "id": "page-id",
+      "name": "Page 1",
+      "type": "PAGE"
+    }
+  ]
+}
+```
+
+## Usage Example
+
+```typescript
+const docInfo = await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "get_document_info",
+  arguments: {}
+});
+
+console.log(`Document: ${docInfo.name}`);
+console.log(`Pages: ${docInfo.pages.length}`);
+```
+
+## Best Practices
+
+<Note>
+  Always call `get_document_info` at the start of a session to understand the document structure before performing other operations.
+</Note>
+
+## Common Use Cases
+
+- Understanding document structure before creating or modifying elements
+- Listing all pages in a document
+- Getting document metadata for context
+- Initial document analysis
+
+## Related Tools
+
+- [get_selection](/api/document-selection/get-selection) - Get current selection
+- [get_node_info](/api/document-selection/get-node-info) - Get specific node details

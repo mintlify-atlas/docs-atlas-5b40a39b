@@ -1,0 +1,74 @@
+---
+title: "set_focus"
+description: "Set focus on a specific node in Figma by selecting it and scrolling viewport to it"
+---
+
+## Overview
+
+Focuses the Figma viewport on a specific node by selecting it and scrolling the canvas to bring it into view. This is useful for directing user attention to a specific element or navigating to a node programmatically.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to focus on. The node must exist in the current document.
+</ParamField>
+
+## Return Value
+
+Returns confirmation with the focused node's name and ID:
+
+```json
+{
+  "name": "Button Component",
+  "id": "123:456"
+}
+```
+
+## Usage Example
+
+```typescript
+const result = await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_focus",
+  arguments: {
+    nodeId: "123:456"
+  }
+});
+
+console.log(`Focused on: ${result.name}`);
+```
+
+## Behavior
+
+When you call `set_focus`:
+1. The node is selected (previous selection is replaced)
+2. The viewport scrolls to center the node
+3. The node becomes visible and highlighted
+
+## Best Practices
+
+<Note>
+  Use `set_focus` to guide users to specific elements during automated workflows or after creating/modifying nodes.
+</Note>
+
+<Warning>
+  Calling `set_focus` will replace the current selection. If you need to preserve the selection, use `get_selection` first to save it.
+</Warning>
+
+## Common Use Cases
+
+- Navigating to a newly created element
+- Highlighting errors or issues in designs
+- Guiding users through a review process
+- Showing results of search operations
+- Demonstrating design changes
+
+## Code Location
+
+Source: `server.ts:2462-2491`
+
+## Related Tools
+
+- [set_selections](/api/document-selection/set-selections) - Select multiple nodes
+- [get_node_info](/api/document-selection/get-node-info) - Get node details
+- [get_selection](/api/document-selection/get-selection) - Get current selection

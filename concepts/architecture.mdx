@@ -1,0 +1,400 @@
+---
+title: 'System Architecture'
+description: 'Understanding the three-component pipeline that powers Talk to Figma MCP'
+icon: 'diagram-project'
+---
+
+## Overview
+
+Talk to Figma MCP uses a **three-component pipeline architecture** to enable seamless communication between AI agents (like Claude Code or Cursor) and Figma designs. This architecture ensures reliable, real-time interaction with Figma while maintaining the MCP protocol standard.
+
+## Architecture Diagram
+
+```
+Claude Code / Cursor ←(stdio)→ MCP Server ←(WebSocket)→ WebSocket Relay ←(WebSocket)→ Figma Plugin
+```
+
+Each component plays a specific role in the pipeline:
+
+<CardGroup cols={3}>
+  <Card title="MCP Server" icon="server" href="#mcp-server">
+    Protocol handler that exposes 50+ tools to AI agents
+  </Card>
+  <Card title="WebSocket Relay" icon="arrow-right-arrow-left" href="#websocket-relay">
+    Message router with channel-based isolation
+  </Card>
+  <Card title="Figma Plugin" icon="figma" href="#figma-plugin">
+    In-canvas executor that modifies designs
+  </Card>
+</CardGroup>
+
+## MCP Server
+
+The MCP server (`src/talk_to_figma_mcp/server.ts`) is the **protocol adapter** between AI agents and Figma. It implements the Model Context Protocol using `@modelcontextprotocol/sdk`.
+
+### Key Responsibilities
+
+- **Tool Registration**: Exposes 50+ tools for creating shapes, modifying text, managing layouts, exporting images, and more
+- **Prompt Strategies**: Provides AI prompts for design best practices and workflows
+- **Request Management**: Tracks all outgoing requests with UUIDs in a `pendingRequests` Map
+- **Timeout Handling**: Manages 30-second timeouts with progress update support
+- **Protocol Translation**: Converts MCP tool calls into WebSocket messages
+
+### Communication Flow
+
+<Steps>
+  <Step title="AI Agent sends tool request">
+    The agent calls a tool like `create_frame()` via stdio
+  </Step>
+  <Step title="Server validates parameters">
+    Zod schemas validate all input parameters
+  </Step>
+  <Step title="Server generates UUID">
+    A unique request ID is created using `uuidv4()`
+  </Step>
+  <Step title="Server sends WebSocket message">
+    The request is forwarded to the WebSocket relay
+  </Step>
+  <Step title="Server awaits response">
+    The promise is stored in `pendingRequests` with timeout callbacks
+  </Step>
+</Steps>
+
+### Code Example: Request Lifecycle
+
+```typescript server.ts
+function sendCommandToFigma(
+  command: FigmaCommand,
+  params: unknown = {},
+  timeoutMs: number = 30000
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const id = uuidv4();
+    const request = {
+      id,
+      type: "message",
+      channel: currentChannel,
+      message: {
+        id,
+        command,
+        params: {
+          ...params,
+          commandId: id,
+        },
+      },
+    };
+
+    // Set timeout for request
+    const timeout = setTimeout(() => {
+      if (pendingRequests.has(id)) {
+        pendingRequests.delete(id);
+        reject(new Error('Request to Figma timed out'));
+      }
+    }, timeoutMs);
+
+    // Store callbacks for later resolution
+    pendingRequests.set(id, {
+      resolve,
+      reject,
+      timeout,
+      lastActivity: Date.now()
+    });
+
+    ws.send(JSON.stringify(request));
+  });
+}
+```
+
+### Transport Layer
+
+The MCP server uses **stdio transport** to communicate with AI agents:
+
+```typescript server.ts
+// All logs go to stderr to avoid interfering with MCP protocol
+const logger = {
+  info: (message: string) => process.stderr.write(`[INFO] ${message}\n`),
+  debug: (message: string) => process.stderr.write(`[DEBUG] ${message}\n`),
+  error: (message: string) => process.stderr.write(`[ERROR] ${message}\n`),
+};
+
+// Start server with stdio transport
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+<Warning>
+  **stdout is reserved for MCP protocol messages**. All logging must go to stderr to prevent protocol corruption.
+</Warning>
+
+## WebSocket Relay
+
+The WebSocket relay (`src/socket.ts`) is a **lightweight Bun-powered router** that enables channel-based message isolation between multiple MCP servers and Figma plugins.
+
+### Why a Relay?
+
+The relay solves a critical architectural challenge:
+
+- **MCP servers** communicate via stdio and need WebSocket connectivity
+- **Multiple users** may run servers simultaneously on the same machine
+- **Channel isolation** prevents messages from crossing between different sessions
+
+### Channel-Based Routing
+
+Clients must join a channel before sending messages:
+
+```typescript socket.ts
+if (data.type === "join") {
+  const channelName = data.channel;
+  
+  // Create channel if it doesn't exist
+  if (!channels.has(channelName)) {
+    channels.set(channelName, new Set());
+  }
+  
+  // Add client to channel
+  const channelClients = channels.get(channelName)!;
+  channelClients.add(ws);
+  
+  console.log(`Client joined channel "${channelName}" (${channelClients.size} total clients)`);
+}
+```
+
+Messages are **broadcast only within the same channel**:
+
+```typescript socket.ts
+if (data.type === "message") {
+  const channelClients = channels.get(channelName);
+  
+  // Broadcast to all OTHER clients (not the sender)
+  channelClients.forEach((client) => {
+    if (client !== ws && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: "broadcast",
+        message: data.message,
+        sender: "peer",
+        channel: channelName
+      }));
+    }
+  });
+}
+```
+
+### Server Configuration
+
+The relay runs on **port 3055** by default (configurable via `PORT` env):
+
+```typescript socket.ts
+const server = Bun.serve({
+  port: 3055,
+  websocket: {
+    open: handleConnection,
+    message: handleMessage,
+    close: handleClose
+  }
+});
+
+console.log(`WebSocket server running on port ${server.port}`);
+```
+
+<Note>
+  Start the relay with `bun socket` before connecting MCP servers or Figma plugins.
+</Note>
+
+## Figma Plugin
+
+The Figma plugin (`src/cursor_mcp_plugin/`) runs **inside Figma** and executes design modifications in response to commands from the MCP server.
+
+### Plugin Components
+
+<AccordionGroup>
+  <Accordion title="code.js - Main Thread">
+    The plugin main thread handles 30+ commands via a dispatcher pattern. It processes requests like `create_frame`, `set_text_content`, `export_node_as_image`, etc.
+    
+    **No build step required** — `code.js` is written directly as the runtime artifact.
+  </Accordion>
+  
+  <Accordion title="ui.html - Plugin UI">
+    The plugin UI provides WebSocket connection management, allowing users to:
+    - Connect to the relay server
+    - Join channels
+    - Monitor connection status
+  </Accordion>
+  
+  <Accordion title="manifest.json - Permissions">
+    Declares required permissions:
+    - `dynamic-page` access for document manipulation
+    - `localhost` network access for WebSocket connections
+  </Accordion>
+</AccordionGroup>
+
+### Command Execution
+
+The plugin receives commands via WebSocket and executes them using Figma's Plugin API:
+
+```javascript code.js
+// Example: Creating a frame
+function createFrame(params) {
+  const frame = figma.createFrame();
+  frame.x = params.x;
+  frame.y = params.y;
+  frame.resize(params.width, params.height);
+  frame.name = params.name || "Frame";
+  
+  if (params.fillColor) {
+    frame.fills = [{
+      type: 'SOLID',
+      color: {
+        r: params.fillColor.r,
+        g: params.fillColor.g,
+        b: params.fillColor.b
+      },
+      opacity: params.fillColor.a || 1
+    }];
+  }
+  
+  return {
+    id: frame.id,
+    name: frame.name
+  };
+}
+```
+
+## Message Flow Example
+
+Here's how a complete request flows through the pipeline:
+
+<Steps>
+  <Step title="AI Agent calls tool">
+    ```typescript
+    // User asks: "Create a blue frame"
+    create_frame({
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 200,
+      fillColor: { r: 0, g: 0.5, b: 1, a: 1 }
+    })
+    ```
+  </Step>
+  
+  <Step title="MCP Server receives via stdio">
+    Server validates parameters with Zod schema, generates UUID `abc-123`
+  </Step>
+  
+  <Step title="MCP Server sends to relay">
+    ```json
+    {
+      "id": "abc-123",
+      "type": "message",
+      "channel": "my-channel",
+      "message": {
+        "id": "abc-123",
+        "command": "create_frame",
+        "params": {
+          "x": 100,
+          "y": 100,
+          "width": 200,
+          "height": 200,
+          "fillColor": { "r": 0, "g": 0.5, "b": 1, "a": 1 }
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Relay broadcasts to channel">
+    Relay forwards message to all clients in `my-channel` except the sender
+  </Step>
+  
+  <Step title="Figma Plugin receives and executes">
+    Plugin creates the frame using Figma API and sends response
+  </Step>
+  
+  <Step title="Response flows back">
+    ```json
+    {
+      "id": "abc-123",
+      "result": {
+        "id": "frame-456",
+        "name": "Frame"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="MCP Server resolves promise">
+    Server finds pending request by ID, clears timeout, resolves promise
+  </Step>
+  
+  <Step title="AI Agent receives result">
+    ```
+    Created frame "Frame" with ID: frame-456
+    ```
+  </Step>
+</Steps>
+
+## Key Design Patterns
+
+### Request Tracking
+
+All requests are tracked in a Map with timeout and promise callbacks:
+
+```typescript server.ts
+const pendingRequests = new Map<string, {
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
+  timeout: ReturnType<typeof setTimeout>;
+  lastActivity: number;
+}>();
+```
+
+### Progress Updates
+
+For long-running operations (like scanning 100+ nodes), the plugin sends progress updates that **reset the inactivity timer**:
+
+```typescript server.ts
+if (json.type === 'progress_update') {
+  const request = pendingRequests.get(requestId)!;
+  
+  // Update last activity timestamp
+  request.lastActivity = Date.now();
+  
+  // Reset the timeout
+  clearTimeout(request.timeout);
+  request.timeout = setTimeout(() => {
+    // 60 second timeout for inactivity
+    request.reject(new Error('Request timed out'));
+  }, 60000);
+}
+```
+
+### Auto-Reconnection
+
+The MCP server automatically reconnects to the relay if the connection drops:
+
+```typescript server.ts
+ws.on('close', () => {
+  logger.info('Disconnected from relay');
+  
+  // Reject all pending requests
+  for (const [id, request] of pendingRequests.entries()) {
+    clearTimeout(request.timeout);
+    request.reject(new Error("Connection closed"));
+    pendingRequests.delete(id);
+  }
+  
+  // Reconnect after 2 seconds
+  setTimeout(() => connectToFigma(port), 2000);
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Channel Communication" icon="comments" href="/concepts/channels">
+    Learn how channel-based isolation works
+  </Card>
+  <Card title="WebSocket Relay" icon="server" href="/concepts/websocket-relay">
+    Deep dive into relay server details
+  </Card>
+</CardGroup>

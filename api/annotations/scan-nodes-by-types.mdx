@@ -1,0 +1,341 @@
+---
+title: "scan_nodes_by_types"
+description: "Find child nodes matching specific types within a parent node"
+---
+
+Scans the hierarchy of a parent node to find all descendant nodes matching specified types. Essential for identifying annotation targets, discovering components, or analyzing design structure.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  ID of the parent node to scan. The scan traverses all descendants recursively.
+</ParamField>
+
+<ParamField path="types" type="array" required>
+  Array of Figma node type strings to match. Common types:
+  
+  - `COMPONENT` - Design system components
+  - `INSTANCE` - Component instances
+  - `FRAME` - Container frames
+  - `GROUP` - Grouped elements
+  - `TEXT` - Text layers
+  - `RECTANGLE` - Rectangle shapes
+  - `ELLIPSE` - Circle/ellipse shapes
+  - `POLYGON` - Polygon shapes
+  - `STAR` - Star shapes
+  - `LINE` - Line shapes
+  - `VECTOR` - Vector paths
+  - `SECTION` - Section frames
+</ParamField>
+
+## Response
+
+Returns an object with:
+
+```typescript
+{
+  success: boolean,
+  count: number,
+  matchingNodes: Array<{
+    id: string,
+    name: string,
+    type: string,
+    bbox: {
+      x: number,
+      y: number,
+      width: number,
+      height: number
+    }
+  }>,
+  searchedTypes: string[]
+}
+```
+
+## Usage
+
+<CodeGroup>
+```typescript Find components and instances
+const result = await scan_nodes_by_types({
+  nodeId: "frame-id",
+  types: ["COMPONENT", "INSTANCE"]
+});
+
+console.log(`Found ${result.count} components/instances`);
+result.matchingNodes.forEach(node => {
+  console.log(`- ${node.name} (${node.type})`);
+});
+```
+
+```typescript Find all interactive elements
+const result = await scan_nodes_by_types({
+  nodeId: "screen-id",
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+
+// Filter for button-like elements
+const buttons = result.matchingNodes.filter(node => 
+  node.name.toLowerCase().includes('button')
+);
+```
+
+```typescript Find text layers
+const result = await scan_nodes_by_types({
+  nodeId: "page-id",
+  types: ["TEXT"]
+});
+
+console.log(`Found ${result.count} text layers`);
+```
+</CodeGroup>
+
+## Finding Annotation Targets
+
+The primary use case is identifying which nodes need annotations:
+
+```typescript
+// 1. Scan for all potential annotation targets
+const targets = await scan_nodes_by_types({
+  nodeId: frameId,
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+
+// 2. Get existing annotations
+const { annotations } = await get_annotations({
+  nodeId: frameId,
+  includeCategories: true
+});
+
+// 3. Find nodes that don't have annotations yet
+const annotatedNodeIds = new Set(annotations.map(a => a.nodeId));
+const needsAnnotation = targets.matchingNodes.filter(
+  node => !annotatedNodeIds.has(node.id)
+);
+
+console.log(`${needsAnnotation.length} nodes need annotations`);
+
+// 4. Create annotations for missing ones
+const newAnnotations = needsAnnotation.map(node => ({
+  nodeId: node.id,
+  labelMarkdown: `**${node.name}**\n\nType: ${node.type}`
+}));
+
+await set_multiple_annotations({
+  nodeId: frameId,
+  annotations: newAnnotations
+});
+```
+
+## Workflow Examples
+
+### Design system audit
+
+Find all components to document:
+
+```typescript
+// Scan for all components
+const { matchingNodes } = await scan_nodes_by_types({
+  nodeId: designSystemPageId,
+  types: ["COMPONENT"]
+});
+
+// Group by naming convention
+const byCategory = {};
+matchingNodes.forEach(node => {
+  const category = node.name.split('/')[0]; // e.g., "Button/Primary"
+  if (!byCategory[category]) byCategory[category] = [];
+  byCategory[category].push(node);
+});
+
+console.log("Components by category:", byCategory);
+```
+
+### Interactive element discovery
+
+Find all elements that need interaction specs:
+
+```typescript
+const { matchingNodes } = await scan_nodes_by_types({
+  nodeId: screenId,
+  types: ["INSTANCE", "COMPONENT"]
+});
+
+// Filter for interactive elements
+const interactive = matchingNodes.filter(node => {
+  const name = node.name.toLowerCase();
+  return name.includes('button') || 
+         name.includes('input') || 
+         name.includes('link') ||
+         name.includes('toggle');
+});
+
+console.log(`Found ${interactive.length} interactive elements`);
+```
+
+### Layout analysis
+
+Analyze frame structure:
+
+```typescript
+const { matchingNodes } = await scan_nodes_by_types({
+  nodeId: pageId,
+  types: ["FRAME"]
+});
+
+// Find auto-layout frames (would need additional get_node_info calls)
+const frames = matchingNodes.filter(node => 
+  node.name.toLowerCase().includes('auto-layout') ||
+  node.name.toLowerCase().includes('stack')
+);
+
+console.log(`Found ${frames.length} layout frames`);
+```
+
+## Combining with Annotations
+
+### Complete annotation workflow
+
+```typescript
+// Step 1: Find all annotation targets
+const scan = await scan_nodes_by_types({
+  nodeId: parentId,
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+
+// Step 2: Get categories
+const { categories } = await get_annotations({
+  nodeId: parentId,
+  includeCategories: true
+});
+
+const designCategory = categories.find(c => c.name === "Design");
+
+// Step 3: Build annotations
+const annotations = scan.matchingNodes.map(node => ({
+  nodeId: node.id,
+  labelMarkdown: `**${node.name}**\n\n` +
+    `Type: ${node.type}\n` +
+    `Size: ${node.bbox.width}×${node.bbox.height}px`,
+  categoryId: designCategory.id
+}));
+
+// Step 4: Apply batch
+await set_multiple_annotations({
+  nodeId: parentId,
+  annotations
+});
+```
+
+### Selective annotation by node type
+
+```typescript
+// Find components only
+const components = await scan_nodes_by_types({
+  nodeId: frameId,
+  types: ["COMPONENT"]
+});
+
+// Annotate with component-specific info
+const componentAnnotations = components.matchingNodes.map(comp => ({
+  nodeId: comp.id,
+  labelMarkdown: `**Component**\n\n` +
+    `Name: ${comp.name}\n` +
+    `[View in design system](https://ds.example.com)`,
+  categoryId: "component-docs"
+}));
+
+// Find instances separately
+const instances = await scan_nodes_by_types({
+  nodeId: frameId,
+  types: ["INSTANCE"]
+});
+
+// Annotate with instance-specific info
+const instanceAnnotations = instances.matchingNodes.map(inst => ({
+  nodeId: inst.id,
+  labelMarkdown: `**Instance**\n\nComponent: ${inst.name}`,
+  categoryId: "usage-docs"
+}));
+
+// Apply both batches
+await set_multiple_annotations({
+  nodeId: frameId,
+  annotations: [...componentAnnotations, ...instanceAnnotations]
+});
+```
+
+## Spatial Analysis
+
+The bounding box data enables spatial queries:
+
+```typescript
+const { matchingNodes } = await scan_nodes_by_types({
+  nodeId: frameId,
+  types: ["COMPONENT", "INSTANCE"]
+});
+
+// Find nodes in specific region
+const topHalf = matchingNodes.filter(node => 
+  node.bbox.y < 500
+);
+
+// Find large elements
+const largeNodes = matchingNodes.filter(node => 
+  node.bbox.width > 200 && node.bbox.height > 200
+);
+
+// Find elements by proximity to a point
+function findClosest(x, y, nodes) {
+  return nodes
+    .map(node => ({
+      node,
+      distance: Math.hypot(
+        (node.bbox.x + node.bbox.width/2) - x,
+        (node.bbox.y + node.bbox.height/2) - y
+      )
+    }))
+    .sort((a, b) => a.distance - b.distance)[0].node;
+}
+
+const closest = findClosest(100, 100, matchingNodes);
+```
+
+## Performance
+
+- Scans recursively through entire node hierarchy
+- Returns immediately with full results (no chunking)
+- Efficient for finding specific node types in complex designs
+- For text-only scans, use `scan_text_nodes` instead (optimized with chunking)
+
+## Use Cases
+
+### Pre-annotation scanning
+Identify all elements that need annotations before batch operations
+
+### Component inventory
+Build a complete list of all components in a design system
+
+### Instance tracking
+Find all instances of components to verify consistency
+
+### Layout structure analysis
+Map out the frame hierarchy of a design
+
+### Element filtering
+Find specific types of nodes for targeted operations
+
+## Related Tools
+
+<CardGroup cols={2}>
+  <Card title="get_annotations" icon="list" href="/api/annotations/get-annotations">
+    Get existing annotations
+  </Card>
+  <Card title="set_multiple_annotations" icon="pen-to-square" href="/api/annotations/set-multiple-annotations">
+    Batch annotate discovered nodes
+  </Card>
+  <Card title="scan_text_nodes" icon="text" href="/api/scanning/scan-text-nodes">
+    Specialized tool for scanning text nodes
+  </Card>
+  <Card title="get_node_info" icon="info" href="/api/node/get-node-info">
+    Get detailed info about specific nodes
+  </Card>
+</CardGroup>

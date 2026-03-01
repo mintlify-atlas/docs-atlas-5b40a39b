@@ -1,0 +1,216 @@
+---
+title: set_item_spacing
+description: Set distance between children in an auto-layout frame
+---
+
+## Overview
+
+Control the spacing between children in an auto-layout frame. You can set both the gap between items along the primary axis and the gap between rows/columns when wrapping is enabled.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the frame to modify
+</ParamField>
+
+<ParamField path="itemSpacing" type="number">
+  Distance between children in pixels along the primary axis (horizontal for `HORIZONTAL` layouts, vertical for `VERTICAL` layouts)
+  
+  <Warning>
+    This value will be ignored if `primaryAxisAlignItems` is set to `SPACE_BETWEEN`.
+  </Warning>
+</ParamField>
+
+<ParamField path="counterAxisSpacing" type="number">
+  Distance between wrapped rows or columns in pixels
+  
+  <Note>
+    Only works when `layoutWrap` is set to `WRAP`.
+  </Note>
+</ParamField>
+
+## Response
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Updated spacing for frame \"Button Group\": itemSpacing=12"
+    }
+  ]
+}
+```
+
+## Examples
+
+### Standard button group spacing
+
+```typescript
+// 12px gap between buttons
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_item_spacing",
+  arguments: {
+    nodeId: "123:456",
+    itemSpacing: 12
+  }
+});
+```
+
+### Tight spacing for list items
+
+```typescript
+// 8px gap between list items
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_item_spacing",
+  arguments: {
+    nodeId: "123:456",
+    itemSpacing: 8
+  }
+});
+```
+
+### Card grid with wrapping
+
+```typescript
+// 16px gap between cards horizontally and vertically
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_item_spacing",
+  arguments: {
+    nodeId: "123:456",
+    itemSpacing: 16,
+    counterAxisSpacing: 16
+  }
+});
+```
+
+### Comfortable section spacing
+
+```typescript
+// 24px gap between major sections
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_item_spacing",
+  arguments: {
+    nodeId: "123:456",
+    itemSpacing: 24
+  }
+});
+```
+
+### Dense icon row
+
+```typescript
+// 4px gap for closely packed icons
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_item_spacing",
+  arguments: {
+    nodeId: "123:456",
+    itemSpacing: 4
+  }
+});
+```
+
+## Spacing Guidelines
+
+### Common Spacing Values
+
+- **4px**: Very tight spacing (icons, badges)
+- **8px**: Tight spacing (compact lists, form field groups)
+- **12px**: Standard spacing (button groups, navigation items)
+- **16px**: Comfortable spacing (cards, sections)
+- **24px**: Loose spacing (major sections, generous layouts)
+- **32px+**: Very loose spacing (hero sections, large containers)
+
+### Spacing by Component Type
+
+| Component | Typical Spacing |
+|-----------|----------------|
+| Icon row | 4-8px |
+| Button group | 8-12px |
+| Navigation items | 12-16px |
+| List items | 8-12px |
+| Form fields | 16-24px |
+| Cards | 16-24px |
+| Page sections | 32-48px |
+
+## Understanding Spacing Types
+
+### itemSpacing (Primary Axis)
+- For **horizontal** layouts: Gap between items left-to-right
+- For **vertical** layouts: Gap between items top-to-bottom
+- Ignored when `primaryAxisAlignItems` is `SPACE_BETWEEN`
+
+### counterAxisSpacing
+- For **horizontal** layouts with wrapping: Gap between rows
+- For **vertical** layouts with wrapping: Gap between columns
+- Only active when `layoutWrap` is set to `WRAP`
+
+## Use Cases
+
+**Button groups**: Use 8-12px spacing for related action buttons
+
+**Navigation menus**: Use 12-16px spacing for easy click targets
+
+**Card grids**: Use 16-24px spacing for visual separation
+
+**Form fields**: Use 16-24px spacing to group related inputs
+
+**Icon toolbars**: Use 4-8px spacing for compact tool rows
+
+## Complete Example: Responsive Card Grid
+
+```typescript
+// 1. Enable horizontal auto-layout with wrapping
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_mode",
+  arguments: {
+    nodeId: "123:456",
+    layoutMode: "HORIZONTAL",
+    layoutWrap: "WRAP"
+  }
+});
+
+// 2. Set 16px spacing between cards (horizontal and vertical)
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_item_spacing",
+  arguments: {
+    nodeId: "123:456",
+    itemSpacing: 16,
+    counterAxisSpacing: 16
+  }
+});
+
+// 3. Add padding around the grid
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_padding",
+  arguments: {
+    nodeId: "123:456",
+    paddingTop: 24,
+    paddingRight: 24,
+    paddingBottom: 24,
+    paddingLeft: 24
+  }
+});
+```
+
+## Design Tips
+
+- Use multiples of 4 or 8 for spacing consistency
+- Increase spacing between major sections to establish visual hierarchy
+- Tighter spacing suggests stronger relationships between items
+- Match your spacing scale to your design system (e.g., 4, 8, 12, 16, 24, 32, 48)
+
+## Related Tools
+
+- [set_layout_mode](/api/auto-layout/set-layout-mode) - Enable auto-layout and wrapping
+- [set_padding](/api/auto-layout/set-padding) - Add spacing around children
+- [set_axis_align](/api/auto-layout/set-axis-align) - Control alignment (SPACE_BETWEEN affects item spacing)
+- [create_frame](/api/shapes/create-frame) - Create frames with spacing from the start

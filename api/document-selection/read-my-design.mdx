@@ -1,0 +1,107 @@
+---
+title: "read_my_design"
+description: "Get detailed information about the current selection, including all node details"
+---
+
+## Overview
+
+Retrieves comprehensive, detailed information about the currently selected nodes in Figma. This includes all properties, children, styles, fills, strokes, and other attributes. This is the most detailed selection inspection tool available.
+
+## Parameters
+
+This tool does not require any parameters.
+
+## Return Value
+
+Returns a detailed JSON object containing full node information:
+
+```json
+{
+  "id": "node-id",
+  "name": "Button",
+  "type": "FRAME",
+  "absoluteBoundingBox": {
+    "x": 100,
+    "y": 200,
+    "width": 120,
+    "height": 40
+  },
+  "fills": [
+    {
+      "type": "SOLID",
+      "color": "#3B82F6",
+      "opacity": 1
+    }
+  ],
+  "strokes": [],
+  "cornerRadius": 8,
+  "children": [
+    {
+      "id": "text-node-id",
+      "name": "Label",
+      "type": "TEXT",
+      "characters": "Click me",
+      "style": {
+        "fontFamily": "Inter",
+        "fontWeight": 600,
+        "fontSize": 14
+      }
+    }
+  ]
+}
+```
+
+<Note>
+  Colors are automatically converted from Figma's RGBA format (0-1) to hex format for easier readability.
+</Note>
+
+## Usage Example
+
+```typescript
+const design = await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "read_my_design",
+  arguments: {}
+});
+
+console.log(`Selected: ${design.name} (${design.type})`);
+console.log(`Position: (${design.absoluteBoundingBox.x}, ${design.absoluteBoundingBox.y})`);
+console.log(`Size: ${design.absoluteBoundingBox.width}x${design.absoluteBoundingBox.height}`);
+
+if (design.children) {
+  console.log(`Children: ${design.children.length}`);
+}
+```
+
+## Best Practices
+
+<Warning>
+  This tool requires a node to be selected. Always verify selection first with `get_selection` or instruct the user to select a node.
+</Warning>
+
+<Note>
+  Use this tool when you need complete design information before making modifications or generating code from designs.
+</Note>
+
+## Data Filtering
+
+The tool automatically filters out:
+- VECTOR type nodes (too verbose)
+- `boundVariables` properties
+- `imageRef` properties
+
+This keeps the output focused on actionable design information.
+
+## Common Use Cases
+
+- Analyzing design structure before modifications
+- Extracting design tokens (colors, spacing, typography)
+- Understanding component hierarchy
+- Preparing data for design-to-code conversion
+- Auditing design properties
+
+## Related Tools
+
+- [get_selection](/api/document-selection/get-selection) - Get basic selection info
+- [get_node_info](/api/document-selection/get-node-info) - Get detailed info for a specific node ID
+- [get_nodes_info](/api/document-selection/get-nodes-info) - Get info for multiple nodes

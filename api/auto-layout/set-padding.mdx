@@ -1,0 +1,137 @@
+---
+title: set_padding
+description: Set padding values for an auto-layout frame in Figma
+---
+
+## Overview
+
+Add spacing between the edges of an auto-layout frame and its children. You can set padding independently for each side or use the same value for all sides.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the frame to modify
+</ParamField>
+
+<ParamField path="paddingTop" type="number">
+  Top padding value in pixels
+</ParamField>
+
+<ParamField path="paddingRight" type="number">
+  Right padding value in pixels
+</ParamField>
+
+<ParamField path="paddingBottom" type="number">
+  Bottom padding value in pixels
+</ParamField>
+
+<ParamField path="paddingLeft" type="number">
+  Left padding value in pixels
+</ParamField>
+
+<Note>
+  You can set one or more padding values in a single call. Only the specified sides will be updated.
+</Note>
+
+## Response
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Set padding (top: 16, right: 24, bottom: 16, left: 24) for frame \"Button\""
+    }
+  ]
+}
+```
+
+## Examples
+
+### Uniform padding on all sides
+
+```typescript
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_padding",
+  arguments: {
+    nodeId: "123:456",
+    paddingTop: 16,
+    paddingRight: 16,
+    paddingBottom: 16,
+    paddingLeft: 16
+  }
+});
+```
+
+### Horizontal and vertical padding
+
+```typescript
+// 16px top/bottom, 24px left/right (common for buttons)
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_padding",
+  arguments: {
+    nodeId: "123:456",
+    paddingTop: 16,
+    paddingRight: 24,
+    paddingBottom: 16,
+    paddingLeft: 24
+  }
+});
+```
+
+### Update only specific sides
+
+```typescript
+// Only add top and bottom padding
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_padding",
+  arguments: {
+    nodeId: "123:456",
+    paddingTop: 32,
+    paddingBottom: 32
+  }
+});
+```
+
+### Card with comfortable spacing
+
+```typescript
+// More padding for a spacious card layout
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_padding",
+  arguments: {
+    nodeId: "123:456",
+    paddingTop: 24,
+    paddingRight: 24,
+    paddingBottom: 24,
+    paddingLeft: 24
+  }
+});
+```
+
+## Use Cases
+
+**Buttons**: Add 12-16px vertical and 20-32px horizontal padding for comfortable click targets
+
+**Cards**: Use 20-32px padding on all sides to create breathing room around content
+
+**Containers**: Apply 16-24px padding to separate content from container edges
+
+**List items**: Add 12-16px horizontal padding and 8-12px vertical padding
+
+## Design Tips
+
+- Use multiples of 4 or 8 for consistent spacing in your design system
+- Horizontal padding is often larger than vertical for buttons
+- Cards typically have equal padding on all sides
+- Dense layouts use 8-12px, comfortable layouts use 16-24px, spacious layouts use 32px+
+
+## Related Tools
+
+- [set_item_spacing](/api/auto-layout/set-item-spacing) - Control spacing between children
+- [set_layout_mode](/api/auto-layout/set-layout-mode) - Enable auto-layout on a frame
+- [create_frame](/api/shapes/create-frame) - Create frames with padding from the start

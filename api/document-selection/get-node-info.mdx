@@ -1,0 +1,89 @@
+---
+title: "get_node_info"
+description: "Get detailed information about a specific node in Figma"
+---
+
+## Overview
+
+Retrieves comprehensive information about a specific node by its ID. Returns the same detailed data as `read_my_design`, but for any node in the document, not just the current selection.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to get information about.
+</ParamField>
+
+## Return Value
+
+Returns a detailed JSON object containing full node information:
+
+```json
+{
+  "id": "123:456",
+  "name": "Card Component",
+  "type": "FRAME",
+  "absoluteBoundingBox": {
+    "x": 0,
+    "y": 0,
+    "width": 320,
+    "height": 480
+  },
+  "fills": [
+    {
+      "type": "SOLID",
+      "color": "#FFFFFF"
+    }
+  ],
+  "cornerRadius": 12,
+  "children": [
+    // ... child nodes
+  ]
+}
+```
+
+<Note>
+  Colors are automatically converted to hex format. VECTOR nodes are filtered out to reduce verbosity.
+</Note>
+
+## Usage Example
+
+```typescript
+const nodeInfo = await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "get_node_info",
+  arguments: {
+    nodeId: "123:456"
+  }
+});
+
+console.log(`Node: ${nodeInfo.name}`);
+console.log(`Type: ${nodeInfo.type}`);
+console.log(`Size: ${nodeInfo.absoluteBoundingBox.width}x${nodeInfo.absoluteBoundingBox.height}`);
+```
+
+## Best Practices
+
+<Warning>
+  Ensure the node ID is valid and exists in the current document. Invalid node IDs will result in an error.
+</Warning>
+
+<Note>
+  Use `get_selection` first to obtain node IDs, or use `scan_text_nodes` or `scan_nodes_by_types` to discover node IDs.
+</Note>
+
+## Common Use Cases
+
+- Inspecting specific nodes after scanning operations
+- Getting details about parent or child nodes
+- Verifying node properties before modifications
+- Analyzing nodes referenced by ID from other operations
+
+## Code Location
+
+Source: `server.ts:179-208`
+
+## Related Tools
+
+- [get_nodes_info](/api/document-selection/get-nodes-info) - Get info for multiple nodes at once
+- [read_my_design](/api/document-selection/read-my-design) - Get info about current selection
+- [set_focus](/api/document-selection/set-focus) - Focus on a specific node

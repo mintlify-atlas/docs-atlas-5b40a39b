@@ -1,0 +1,126 @@
+---
+title: Export Node as Image
+description: Export a Figma node as an image in various formats (PNG, JPG, SVG, PDF)
+---
+
+## Overview
+
+Exports a Figma node as an image in one of the supported formats: PNG, JPG, SVG, or PDF. The exported image is returned as base64-encoded data that can be displayed or saved.
+
+## Usage
+
+```typescript
+const result = await mcp.use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "export_node_as_image",
+  arguments: {
+    nodeId: "123:456",
+    format: "PNG",
+    scale: 2
+  }
+});
+```
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to export
+</ParamField>
+
+<ParamField path="format" type="enum" default="PNG">
+  Export format. Supported values:
+  - `PNG` - Portable Network Graphics (default)
+  - `JPG` - JPEG format
+  - `SVG` - Scalable Vector Graphics
+  - `PDF` - Portable Document Format
+</ParamField>
+
+<ParamField path="scale" type="number" default="1">
+  Export scale multiplier. Use higher values (e.g., 2 or 3) for higher resolution exports.
+  
+  **Common scale values:**
+  - `1` - Standard resolution
+  - `2` - Retina/2x resolution
+  - `3` - 3x resolution for high-DPI displays
+</ParamField>
+
+## Response
+
+The tool returns an image content block with:
+
+- `imageData` - Base64-encoded image data
+- `mimeType` - MIME type corresponding to the format (e.g., `image/png`, `image/jpeg`, `image/svg+xml`, `application/pdf`)
+
+## Format-Specific Notes
+
+### PNG
+- Supports transparency
+- Lossless compression
+- Best for UI elements, icons, and designs with sharp edges
+
+### JPG
+- No transparency support
+- Lossy compression
+- Best for photographs and complex images with gradients
+
+### SVG
+- Vector format (resolution-independent)
+- Scale parameter is ignored
+- Best for scalable graphics and icons
+- Preserves editability
+
+### PDF
+- Vector format when possible
+- Preserves layers and structure
+- Best for print-ready exports
+
+## Example Workflows
+
+### Export for Web (2x Retina)
+
+```typescript
+const webExport = await mcp.use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "export_node_as_image",
+  arguments: {
+    nodeId: "123:456",
+    format: "PNG",
+    scale: 2  // 2x for retina displays
+  }
+});
+```
+
+### Export Vector Asset
+
+```typescript
+const vectorExport = await mcp.use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "export_node_as_image",
+  arguments: {
+    nodeId: "123:456",
+    format: "SVG"  // Scale not needed for vector
+  }
+});
+```
+
+### Export Multiple Sizes
+
+```typescript
+const scales = [1, 2, 3];
+for (const scale of scales) {
+  await mcp.use_mcp_tool({
+    server_name: "TalkToFigma",
+    tool_name: "export_node_as_image",
+    arguments: {
+      nodeId: "123:456",
+      format: "PNG",
+      scale
+    }
+  });
+}
+```
+
+## Related Tools
+
+- [get_node_info](/api/selection/get-node-info) - Get node details before export
+- [get_selection](/api/selection/get-selection) - Export currently selected nodes

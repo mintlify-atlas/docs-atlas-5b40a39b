@@ -1,80 +1,391 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quick Start'
+description: 'Get Talk to Figma MCP running in 5 minutes'
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will get you up and running with Talk to Figma MCP in just a few minutes. You'll install dependencies, configure your AI agent, start the WebSocket server, and connect the Figma plugin.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  This quick start uses the automated setup script. For manual installation and advanced configuration, see the [Installation guide](/installation).
 </Note>
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **Bun** installed ([installation instructions](https://bun.sh))
+- **Cursor** or **Claude Code** installed
+- **Figma Desktop App** or browser access to Figma
+- **Terminal** access
+
+## Step 1: Install Bun
+
+If you haven't installed Bun yet, run:
+
+<CodeGroup>
+
+```bash macOS/Linux
+curl -fsSL https://bun.sh/install | bash
+```
+
+```powershell Windows
+powershell -c "irm bun.sh/install.ps1|iex"
+```
+
+</CodeGroup>
+
+<Note>
+  Bun is a fast JavaScript runtime and toolkit that provides better performance than Node.js for this project.
+</Note>
+
+## Step 2: Run Automated Setup
+
+Clone the repository and run the setup script:
+
+```bash
+git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+cd talk-to-figma-mcp
+bun setup
+```
+
+The setup script will:
+
+<Steps>
+  <Step title="Install Dependencies">
+    Runs `bun install` to install all required packages
+  </Step>
+  <Step title="Configure Cursor">
+    Writes MCP configuration to `.cursor/mcp.json`
+  </Step>
+  <Step title="Configure Claude Code">
+    Writes MCP configuration to `.mcp.json`
+  </Step>
+</Steps>
+
+<Check>
+  You should see confirmation messages:
+  ```
+  ✓ Cursor MCP config written to .cursor/mcp.json
+  ✓ Claude Code MCP config written to .mcp.json
+  ```
+</Check>
+
+## Step 3: Start the WebSocket Server
+
+In your terminal, start the WebSocket relay server:
+
+```bash
+bun socket
+```
+
+You should see:
+
+```
+WebSocket server running on port 3055
+```
+
+<Warning>
+  Keep this terminal window open. The WebSocket server must be running for the MCP server to communicate with Figma.
+</Warning>
+
+### Windows + WSL Users
+
+If you're using Windows with WSL, you need to uncomment one line in `src/socket.ts`:
+
+```typescript src/socket.ts
+const server = Bun.serve({
+  port: 3055,
+  // uncomment this to allow connections in windows wsl
+  hostname: "0.0.0.0", // Uncomment this line
+  fetch(req: Request, server: Server) {
+    // ...
+  }
+});
+```
+
+## Step 4: Install Figma Plugin
+
+You have two options for installing the Figma plugin:
+
+<Tabs>
+  <Tab title="Community Plugin (Recommended)">
+    Install directly from the Figma Community:
+
+    <Steps>
+      <Step title="Open Figma">
+        Launch Figma Desktop or go to figma.com
+      </Step>
+      <Step title="Visit Community Page">
+        Go to the [Talk to Figma MCP Plugin](https://www.figma.com/community/plugin/1485687494525374295/cursor-talk-to-figma-mcp-plugin)
+      </Step>
+      <Step title="Install Plugin">
+        Click "Install" to add it to your Figma account
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Local Development">
+    Install the plugin locally from the repository:
+
+    <Steps>
+      <Step title="Open Figma">
+        Launch Figma Desktop
+      </Step>
+      <Step title="Go to Plugins Menu">
+        Click **Plugins** → **Development** → **New Plugin**
+      </Step>
+      <Step title="Link Existing Plugin">
+        Choose **"Link existing plugin"**
+      </Step>
+      <Step title="Select Manifest">
+        Navigate to and select: `src/cursor_mcp_plugin/manifest.json`
+      </Step>
+    </Steps>
+
+    <Note>
+      The plugin files are not bundled. The `code.js` file is used directly as the runtime artifact.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Step 5: Connect to Channel
+
+Now connect the Figma plugin to the WebSocket server:
+
+<Steps>
+  <Step title="Open Plugin in Figma">
+    In any Figma file, go to **Plugins** → **Talk to Figma MCP Plugin** (or your development plugin)
+  </Step>
+  <Step title="Join a Channel">
+    In your AI agent (Cursor/Claude Code), run the `join_channel` tool:
+
+    ```
+    Use the join_channel tool to connect to the default channel
+    ```
+
+    Or specify a custom channel name:
+
+    ```javascript
+    {
+      "channel": "my-design-session"
+    }
+    ```
+  </Step>
+  <Step title="Verify Connection">
+    You should see a confirmation message in the plugin UI and in your terminal
+  </Step>
+</Steps>
+
+<Check>
+  Terminal output should show:
+  ```
+  ✓ Client joined channel "default" (2 total clients)
+  ```
+</Check>
+
+## Step 6: Test Your Setup
+
+Let's verify everything works by getting document information:
+
+<Steps>
+  <Step title="Open a Figma File">
+    Make sure you have a Figma file open with some content
+  </Step>
+  <Step title="Get Document Info">
+    In your AI agent, ask:
+
+    ```
+    Get information about the current Figma document
+    ```
+
+    The agent will use the `get_document_info` tool
+  </Step>
+  <Step title="Check Response">
+    You should receive JSON with document details:
+
+    ```json
+    {
+      "name": "My Design File",
+      "id": "...",
+      "type": "DOCUMENT",
+      "children": [...]
+    }
+    ```
+  </Step>
+</Steps>
+
+## Your First Design Automation
+
+Now that everything is set up, try a simple design automation:
+
+### Example 1: Create a Rectangle
+
+```
+Create a blue rectangle at position (100, 100) with width 200 and height 150
+```
+
+The AI agent will use the `create_rectangle` tool:
+
+```javascript
+{
+  "x": 100,
+  "y": 100,
+  "width": 200,
+  "height": 150,
+  "name": "Blue Rectangle",
+  "fillColor": {
+    "r": 0,
+    "g": 0.5,
+    "b": 1,
+    "a": 1
+  }
+}
+```
+
+<Note>
+  Colors in Figma use RGBA values in the 0-1 range, not 0-255.
+</Note>
+
+### Example 2: Read Selected Elements
+
+1. Select some elements in your Figma file
+2. Ask your AI agent:
+
+```
+Read my current selection and describe the elements
+```
+
+The agent will use `get_selection` or `read_my_design` to extract information about the selected nodes.
+
+### Example 3: Bulk Text Replacement
+
+```
+Scan all text nodes in the current page and replace "Product" with "Service"
+```
+
+The agent will:
+1. Use `scan_text_nodes` to find all text nodes
+2. Filter nodes containing "Product"
+3. Use `set_multiple_text_contents` to update them in batch
+
+<Warning>
+  For large designs with 100+ nodes, operations are automatically chunked with progress updates to prevent Figma from freezing.
+</Warning>
+
+## Common Commands
+
+Here are some common commands to try:
+
+<AccordionGroup>
+  <Accordion title="Document Analysis">
+    - "Get document information"
+    - "What's currently selected?"
+    - "Read the design structure"
+    - "Show me all annotations"
+  </Accordion>
+  <Accordion title="Element Creation">
+    - "Create a frame at (0, 0) with size 375x812"
+    - "Add a text node that says 'Hello World'"
+    - "Create a component instance from [component name]"
+  </Accordion>
+  <Accordion title="Text Operations">
+    - "Scan all text nodes in the current page"
+    - "Replace all instances of 'old text' with 'new text'"
+    - "Update the text of node [id] to 'new content'"
+  </Accordion>
+  <Accordion title="Layout & Styling">
+    - "Set this frame to horizontal auto-layout"
+    - "Change the fill color to red"
+    - "Add 16px padding to all sides"
+    - "Set corner radius to 8px"
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Join Channel First" icon="link">
+    Call `join_channel` before any other commands to establish the WebSocket connection
+  </Card>
+  <Card title="Get Context First" icon="eye">
+    Use `get_document_info` and `get_selection` before making modifications to understand the structure
+  </Card>
+  <Card title="Use Batch Operations" icon="layer-group">
+    For multiple updates, use batch tools like `set_multiple_text_contents` instead of individual calls
+  </Card>
+  <Card title="Verify Changes" icon="check">
+    Use `get_node_info` after modifications to confirm changes were applied correctly
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="WebSocket connection failed">
+    - Make sure `bun socket` is running in a terminal
+    - Check that port 3055 is not blocked by a firewall
+    - For WSL users, ensure `hostname: "0.0.0.0"` is uncommented in `src/socket.ts`
+  </Accordion>
+  <Accordion title="Plugin not responding">
+    - Verify the plugin is running in Figma
+    - Check that you've called `join_channel` successfully
+    - Look for error messages in the browser console (Plugins → Development → Open Console)
+  </Accordion>
+  <Accordion title="Command timeout">
+    - Operations timeout after 30 seconds by default
+    - For large operations, progress updates reset the inactivity timer
+    - Check the WebSocket server logs for error messages
+  </Accordion>
+  <Accordion title="'No other clients in channel' warning">
+    - This means the Figma plugin hasn't joined the same channel
+    - Make sure the plugin is running and has called `join_channel`
+    - Verify both the MCP server and plugin are using the same channel name
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api-reference"
+  >
+    Explore all 50+ available tools and their parameters
+  </Card>
+  <Card
+    title="Advanced Usage"
+    icon="wand-magic-sparkles"
+    href="/advanced"
+  >
+    Learn about prompts, chunking, and complex workflows
+  </Card>
+  <Card
+    title="Examples"
+    icon="code"
+    href="/examples"
+  >
+    View real-world examples and use cases
+  </Card>
+  <Card
+    title="Contributing"
+    icon="github"
+    href="https://github.com/sonnylazuardi/talk-to-figma-mcp"
+  >
+    Contribute to the project on GitHub
+  </Card>
+</CardGroup>
+
+## Get Help
+
+If you run into issues:
+
+- Check the [Installation guide](/installation) for detailed setup instructions
+- Review the [Document & Selection API](/api/document-selection/get-document-info) for tool documentation
+- Open an issue on [GitHub](https://github.com/grab/cursor-talk-to-figma-mcp/issues)
+- Watch the [video tutorial](https://www.linkedin.com/posts/sonnylazuardi_just-wanted-to-share-my-latest-experiment-activity-7307821553654657024-yrh8)
+
+<Check>
+  You're now ready to automate your Figma workflows with AI! Start experimenting with different commands and explore the full API.
+</Check>

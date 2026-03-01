@@ -1,0 +1,723 @@
+---
+title: 'Installation'
+description: 'Detailed installation guide for Talk to Figma MCP'
+---
+
+## Overview
+
+This guide covers all installation methods for Talk to Figma MCP, including automated setup, manual configuration, and platform-specific instructions.
+
+<Note>
+  For a faster setup experience, see the [Quick Start guide](/quickstart).
+</Note>
+
+## System Requirements
+
+### Required
+
+- **Bun** (recommended) or **Node.js** v18+
+- **Figma Desktop App** or **Figma in Browser**
+- **Cursor** or **Claude Code** with MCP support
+- **Network Access**: Localhost WebSocket (port 3055)
+
+### Platform Support
+
+<CardGroup cols={3}>
+  <Card title="macOS" icon="apple">
+    Full support with native Bun installation
+  </Card>
+  <Card title="Linux" icon="linux">
+    Full support with native Bun installation
+  </Card>
+  <Card title="Windows" icon="windows">
+    Requires additional WSL configuration
+  </Card>
+</CardGroup>
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="Automated Setup (Recommended)">
+    The fastest way to get started:
+
+    <Steps>
+      <Step title="Install Bun">
+        <CodeGroup>
+        ```bash macOS/Linux
+        curl -fsSL https://bun.sh/install | bash
+        ```
+
+        ```powershell Windows
+        powershell -c "irm bun.sh/install.ps1|iex"
+        ```
+        </CodeGroup>
+      </Step>
+      <Step title="Clone Repository">
+        ```bash
+        git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+        cd talk-to-figma-mcp
+        ```
+      </Step>
+      <Step title="Run Setup Script">
+        ```bash
+        bun setup
+        ```
+
+        This script will:
+        - Install all dependencies with `bun install`
+        - Create `.cursor/mcp.json` for Cursor
+        - Create `.mcp.json` for Claude Code
+      </Step>
+    </Steps>
+
+    <Check>
+      Setup complete! Skip to [Start WebSocket Server](#start-websocket-server).
+    </Check>
+  </Tab>
+
+  <Tab title="Manual Setup">
+    For advanced users who want full control:
+
+    <Steps>
+      <Step title="Install Bun">
+        <CodeGroup>
+        ```bash macOS/Linux
+        curl -fsSL https://bun.sh/install | bash
+        ```
+
+        ```powershell Windows
+        powershell -c "irm bun.sh/install.ps1|iex"
+        ```
+        </CodeGroup>
+      </Step>
+      <Step title="Clone Repository">
+        ```bash
+        git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+        cd talk-to-figma-mcp
+        ```
+      </Step>
+      <Step title="Install Dependencies">
+        ```bash
+        bun install
+        ```
+      </Step>
+      <Step title="Build MCP Server">
+        ```bash
+        bun run build
+        ```
+
+        This compiles TypeScript to JavaScript using `tsup` and outputs to `dist/`.
+      </Step>
+      <Step title="Configure MCP Clients">
+        See [MCP Configuration](#mcp-configuration) below.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="NPM Package (Published)">
+    Use the published npm package without cloning:
+
+    <Steps>
+      <Step title="Install Bun">
+        <CodeGroup>
+        ```bash macOS/Linux
+        curl -fsSL https://bun.sh/install | bash
+        ```
+
+        ```powershell Windows
+        powershell -c "irm bun.sh/install.ps1|iex"
+        ```
+        </CodeGroup>
+      </Step>
+      <Step title="Configure MCP Client">
+        Add to your MCP configuration:
+
+        ```json
+        {
+          "mcpServers": {
+            "TalkToFigma": {
+              "command": "bunx",
+              "args": ["cursor-talk-to-figma-mcp@latest"]
+            }
+          }
+        }
+        ```
+      </Step>
+      <Step title="Clone for WebSocket Server">
+        You still need the repository for the WebSocket server:
+
+        ```bash
+        git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+        cd talk-to-figma-mcp
+        bun install
+        ```
+      </Step>
+    </Steps>
+
+    <Note>
+      The published package (`cursor-talk-to-figma-mcp@latest`) includes only the MCP server. The WebSocket relay and Figma plugin require the full repository.
+    </Note>
+  </Tab>
+</Tabs>
+
+## MCP Configuration
+
+### Cursor Configuration
+
+Create or edit `~/.cursor/mcp.json` (or `.cursor/mcp.json` in your project):
+
+<CodeGroup>
+
+```json Published Package
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"]
+    }
+  }
+}
+```
+
+```json Local Development
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bun",
+      "args": ["/absolute/path/to/talk-to-figma-mcp/src/talk_to_figma_mcp/server.ts"]
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+<Warning>
+  For local development, use the **absolute path** to `server.ts`, not a relative path.
+</Warning>
+
+### Claude Code Configuration
+
+You can configure Claude Code in two ways:
+
+#### Option 1: Manual File Edit
+
+Create or edit `.mcp.json` in your project root:
+
+<CodeGroup>
+
+```json Published Package
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"]
+    }
+  }
+}
+```
+
+```json Local Development
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bun",
+      "args": ["/absolute/path/to/talk-to-figma-mcp/src/talk_to_figma_mcp/server.ts"]
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+#### Option 2: CLI Command
+
+Use the Claude Code CLI:
+
+```bash
+claude mcp add TalkToFigma -- bunx cursor-talk-to-figma-mcp@latest
+```
+
+### Configuration Reference
+
+<ResponseField name="command" type="string" required>
+  The command to execute. Use `bunx` for published package or `bun` for local development.
+</ResponseField>
+
+<ResponseField name="args" type="array" required>
+  Arguments passed to the command. For published package: `["cursor-talk-to-figma-mcp@latest"]`. For local: `["/path/to/server.ts"]`.
+</ResponseField>
+
+<ResponseField name="env" type="object">
+  Optional environment variables. Example:
+  ```json
+  {
+    "env": {
+      "PORT": "3055"
+    }
+  }
+  ```
+</ResponseField>
+
+## Start WebSocket Server
+
+The WebSocket relay must be running for the MCP server to communicate with Figma.
+
+### Basic Usage
+
+In the repository directory:
+
+```bash
+bun socket
+```
+
+Expected output:
+
+```
+WebSocket server running on port 3055
+```
+
+<Warning>
+  Keep this terminal window open. The WebSocket server must run continuously while using Talk to Figma MCP.
+</Warning>
+
+### Custom Port
+
+To use a different port, set the `PORT` environment variable:
+
+```bash
+PORT=8080 bun socket
+```
+
+### Development Mode
+
+For development with auto-reload:
+
+```bash
+bun run dev
+```
+
+This runs the MCP server build in watch mode. Run `bun socket` in a separate terminal.
+
+## Figma Plugin Installation
+
+### Community Plugin (Recommended)
+
+<Steps>
+  <Step title="Visit Plugin Page">
+    Go to the [Figma Community page](https://www.figma.com/community/plugin/1485687494525374295/cursor-talk-to-figma-mcp-plugin)
+  </Step>
+  <Step title="Install Plugin">
+    Click **Install** to add it to your Figma account
+  </Step>
+  <Step title="Run Plugin">
+    In any Figma file: **Plugins** → **Talk to Figma MCP Plugin**
+  </Step>
+</Steps>
+
+### Local Development Plugin
+
+For plugin development or customization:
+
+<Steps>
+  <Step title="Open Figma Desktop">
+    The plugin development workflow requires Figma Desktop, not the browser version
+  </Step>
+  <Step title="Access Development Menu">
+    Go to **Plugins** → **Development** → **New Plugin**
+  </Step>
+  <Step title="Link Existing Plugin">
+    Choose **"Link existing plugin"**
+  </Step>
+  <Step title="Select Manifest">
+    Navigate to the repository and select:
+    ```
+    src/cursor_mcp_plugin/manifest.json
+    ```
+  </Step>
+  <Step title="Plugin Available">
+    The plugin is now available under **Plugins** → **Development** → **Cursor MCP Plugin**
+  </Step>
+</Steps>
+
+<Note>
+  The Figma plugin files are **not bundled**. The `code.js` file is used directly as the runtime artifact. Edit `code.js` and `ui.html` directly in the `src/cursor_mcp_plugin/` directory.
+</Note>
+
+### Plugin Files
+
+<ResponseField name="manifest.json" type="object">
+  Plugin metadata including ID, permissions, and network access configuration
+</ResponseField>
+
+<ResponseField name="code.js" type="file">
+  Plugin main thread that handles 30+ commands via a dispatcher
+</ResponseField>
+
+<ResponseField name="ui.html" type="file">
+  Plugin UI for WebSocket connection management
+</ResponseField>
+
+## Platform-Specific Setup
+
+### Windows + WSL
+
+Windows users with WSL need an additional configuration step:
+
+<Steps>
+  <Step title="Install Bun in PowerShell">
+    ```powershell
+    powershell -c "irm bun.sh/install.ps1|iex"
+    ```
+  </Step>
+  <Step title="Modify socket.ts">
+    Open `src/socket.ts` and uncomment the hostname line:
+
+    ```typescript src/socket.ts
+    const server = Bun.serve({
+      port: 3055,
+      // uncomment this to allow connections in windows wsl
+      hostname: "0.0.0.0", // ← Uncomment this line
+      fetch(req: Request, server: Server) {
+        // ...
+      }
+    });
+    ```
+  </Step>
+  <Step title="Start WebSocket Server">
+    ```bash
+    bun socket
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Without setting `hostname: "0.0.0.0"`, the WebSocket server won't be accessible from Windows to WSL.
+</Warning>
+
+### macOS
+
+No additional configuration needed. Follow the standard installation steps.
+
+### Linux
+
+No additional configuration needed. Follow the standard installation steps.
+
+## Verification
+
+Verify your installation is working:
+
+<Steps>
+  <Step title="Check WebSocket Server">
+    Terminal should show:
+    ```
+    WebSocket server running on port 3055
+    ```
+  </Step>
+  <Step title="Verify MCP Configuration">
+    Open your AI agent (Cursor/Claude Code) and check that the TalkToFigma MCP server appears in the MCP servers list
+  </Step>
+  <Step title="Test Plugin Connection">
+    1. Open Figma and run the plugin
+    2. In your AI agent, use the `join_channel` tool
+    3. Check terminal output for:
+    ```
+    ✓ Client joined channel "default" (2 total clients)
+    ```
+  </Step>
+  <Step title="Test Basic Command">
+    In your AI agent, ask:
+    ```
+    Get information about the current Figma document
+    ```
+
+    You should receive document details in JSON format
+  </Step>
+</Steps>
+
+<Check>
+  If all steps succeed, your installation is complete!
+</Check>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="'bun: command not found'">
+    **Solution:**
+
+    1. Restart your terminal after installing Bun
+    2. Verify installation: `bun --version`
+    3. Add Bun to PATH manually:
+
+    ```bash
+    export PATH="$HOME/.bun/bin:$PATH"
+    ```
+
+    Add this line to your `.bashrc`, `.zshrc`, or `.profile`
+  </Accordion>
+
+  <Accordion title="Port 3055 already in use">
+    **Solution:**
+
+    1. Find the process using port 3055:
+
+    ```bash macOS/Linux
+    lsof -i :3055
+    ```
+
+    ```powershell Windows
+    netstat -ano | findstr :3055
+    ```
+
+    2. Kill the process or use a different port:
+
+    ```bash
+    PORT=8080 bun socket
+    ```
+  </Accordion>
+
+  <Accordion title="WebSocket connection failed">
+    **Possible causes:**
+
+    - WebSocket server not running → Check `bun socket` is active
+    - Firewall blocking port 3055 → Allow localhost connections
+    - WSL without hostname config → Set `hostname: "0.0.0.0"`
+    - Wrong channel name → Ensure MCP server and plugin use same channel
+
+    **Debug steps:**
+
+    1. Check server logs in terminal running `bun socket`
+    2. Open browser console: **Plugins** → **Development** → **Open Console**
+    3. Look for WebSocket connection errors
+  </Accordion>
+
+  <Accordion title="MCP server not showing in Cursor/Claude">
+    **Solution:**
+
+    1. Verify configuration file location:
+       - Cursor: `~/.cursor/mcp.json` or `.cursor/mcp.json`
+       - Claude: `.mcp.json` in project root
+
+    2. Check JSON syntax is valid
+    3. For local development, use absolute paths
+    4. Restart your AI agent
+  </Accordion>
+
+  <Accordion title="Build errors">
+    **Solution:**
+
+    1. Clear dependencies and reinstall:
+
+    ```bash
+    rm -rf node_modules
+    bun install
+    ```
+
+    2. Verify Bun version:
+
+    ```bash
+    bun --version
+    ```
+
+    Should be v1.0.0 or higher.
+
+    3. Try building manually:
+
+    ```bash
+    bun run build
+    ```
+  </Accordion>
+
+  <Accordion title="Plugin not appearing in Figma">
+    **Solution:**
+
+    1. For community plugin: Check you're logged into Figma
+    2. For local plugin:
+       - Verify you selected the correct `manifest.json` file
+       - Check **Plugins** → **Development** menu
+       - Try relinking the plugin
+
+    3. Check plugin permissions in `manifest.json`:
+
+    ```json
+    "documentAccess": "dynamic-page",
+    "networkAccess": {
+      "allowedDomains": ["ws://localhost:3055"]
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Configuration
+
+### Custom WebSocket URL
+
+The MCP server supports a custom WebSocket URL via command-line argument:
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": [
+        "cursor-talk-to-figma-mcp@latest",
+        "--server=myserver.com:8080"
+      ]
+    }
+  }
+}
+```
+
+Default: `ws://localhost:3055`
+
+### Environment Variables
+
+<ResponseField name="PORT" type="string" default="3055">
+  WebSocket server port
+</ResponseField>
+
+<ResponseField name="NODE_ENV" type="string">
+  Set to `development` for additional logging
+</ResponseField>
+
+Example:
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"],
+      "env": {
+        "PORT": "8080",
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}
+```
+
+### Multiple Instances
+
+Run multiple independent instances using different channels:
+
+1. Start WebSocket server once: `bun socket`
+2. Configure multiple MCP servers with unique names
+3. Join different channels for each instance
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma-Project1": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"]
+    },
+    "TalkToFigma-Project2": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"]
+    }
+  }
+}
+```
+
+Then use `join_channel` with different channel names: `"project1"`, `"project2"`, etc.
+
+## Development Commands
+
+For contributors and developers:
+
+```bash
+# Install dependencies
+bun install
+
+# Build MCP server (tsup → dist/)
+bun run build
+
+# Build in watch mode
+bun run dev
+
+# Start WebSocket relay
+bun socket
+
+# Run built MCP server
+bun run start
+
+# Full setup (install + config)
+bun setup
+
+# Publish to npm
+bun run pub:release
+```
+
+<Note>
+  There is no test suite or linter configured in this project.
+</Note>
+
+## Uninstallation
+
+To remove Talk to Figma MCP:
+
+<Steps>
+  <Step title="Stop WebSocket Server">
+    Press `Ctrl+C` in the terminal running `bun socket`
+  </Step>
+  <Step title="Remove MCP Configuration">
+    Delete the TalkToFigma entry from:
+    - `~/.cursor/mcp.json` (Cursor)
+    - `.mcp.json` (Claude Code)
+  </Step>
+  <Step title="Remove Figma Plugin">
+    In Figma: **Plugins** → **Development** → Right-click plugin → **Unlink**
+  </Step>
+  <Step title="Delete Repository">
+    ```bash
+    rm -rf talk-to-figma-mcp
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running with hands-on examples
+  </Card>
+  <Card
+    title="API Reference"
+    icon="book"
+    href="/api-reference"
+  >
+    Explore all 50+ available tools
+  </Card>
+  <Card
+    title="Best Practices"
+    icon="lightbulb"
+    href="/best-practices"
+  >
+    Learn patterns for effective design automation
+  </Card>
+  <Card
+    title="GitHub Repository"
+    icon="github"
+    href="https://github.com/sonnylazuardi/talk-to-figma-mcp"
+  >
+    View source code and contribute
+  </Card>
+</CardGroup>
+
+## Get Help
+
+If you encounter issues during installation:
+
+- Review the [Quick Start guide](/quickstart) for a simplified setup
+- Check the [Troubleshooting section](#troubleshooting) above
+- Open an issue on [GitHub](https://github.com/sonnylazuardi/talk-to-figma-mcp/issues)
+- Watch the [video tutorial](https://www.linkedin.com/posts/sonnylazuardi_just-wanted-to-share-my-latest-experiment-activity-7307821553654657024-yrh8)
+
+<Check>
+  Installation complete! Your Talk to Figma MCP is ready to use.
+</Check>

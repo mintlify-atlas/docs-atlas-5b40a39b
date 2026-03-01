@@ -1,0 +1,113 @@
+---
+title: scan_text_nodes
+description: Scan all text nodes in a selected Figma node with chunked processing for large designs
+---
+
+## Overview
+
+The `scan_text_nodes` tool scans all text nodes within a specified Figma node and returns detailed information about each text element. This tool is optimized for large designs with automatic chunking to prevent UI freezing.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  ID of the node to scan for text nodes
+</ParamField>
+
+## Response
+
+Returns an object containing:
+
+- `success` (boolean) - Whether the scan completed successfully
+- `totalNodes` (number) - Total number of text nodes found
+- `processedNodes` (number) - Number of nodes processed
+- `chunks` (number) - Number of chunks the operation was divided into
+- `textNodes` (array) - Array of text node objects with the following properties:
+  - `id` (string) - Node ID
+  - `name` (string) - Node name in Figma
+  - `characters` (string) - Text content
+  - `bbox` (object) - Bounding box with x, y, width, height
+  - `style` (object) - Text styling information (fontFamily, fontSize, fontWeight, etc.)
+
+## Chunking Behavior
+
+The tool automatically processes text nodes in chunks to ensure smooth operation:
+
+- **Chunk Size**: Processes 10 nodes at a time
+- **Progress Updates**: Sends real-time progress updates during processing
+- **Non-Blocking**: Prevents Figma UI from freezing during large scans
+- **Automatic**: Chunking is enabled by default for all scans
+
+For designs with 100+ text nodes, you'll receive progress updates showing:
+- Current chunk being processed
+- Number of nodes processed so far
+- Estimated completion percentage
+
+## Example
+
+```typescript
+const result = await scan_text_nodes({
+  nodeId: "123:456"
+});
+
+console.log(`Found ${result.totalNodes} text nodes`);
+console.log(`Processed in ${result.chunks} chunks`);
+
+// Access individual text nodes
+result.textNodes.forEach(node => {
+  console.log(`${node.name}: ${node.characters}`);
+});
+```
+
+## Use Cases
+
+### Text Inventory
+Scan a frame to get a complete inventory of all text elements before making bulk updates.
+
+```typescript
+const textNodes = await scan_text_nodes({ nodeId: "frame-id" });
+const labels = textNodes.textNodes.filter(n => n.name.includes("Label"));
+```
+
+### Localization Preparation
+Identify all text nodes that need translation in a design.
+
+```typescript
+const allText = await scan_text_nodes({ nodeId: "screen-id" });
+const textToTranslate = allText.textNodes.map(node => ({
+  id: node.id,
+  content: node.characters,
+  context: node.name
+}));
+```
+
+### Design Audit
+Analyze text styles and content patterns across a design.
+
+```typescript
+const result = await scan_text_nodes({ nodeId: "page-id" });
+const fontUsage = result.textNodes.reduce((acc, node) => {
+  const font = node.style.fontFamily;
+  acc[font] = (acc[font] || 0) + 1;
+  return acc;
+}, {});
+```
+
+## Performance Considerations
+
+- **Large Designs**: For frames with 500+ text nodes, expect processing time of 5-10 seconds
+- **Progress Tracking**: Monitor progress updates to track scanning status
+- **Memory Efficient**: Chunking ensures memory usage stays reasonable even for large designs
+- **Network Overhead**: Each progress update is sent over WebSocket, so very large designs may have higher network traffic
+
+## Best Practices
+
+1. **Scope Appropriately**: Scan specific frames rather than entire pages when possible
+2. **Monitor Progress**: Use progress updates to inform users during long scans
+3. **Cache Results**: Store scan results if you need to reference them multiple times
+4. **Combine with Filtering**: Use the results with array methods to find specific text nodes
+
+## Related Tools
+
+- [set_text_content](/api/text-operations/set-text-content) - Update a single text node
+- [set_multiple_text_contents](/api/text-operations/set-multiple-text-contents) - Update multiple text nodes in batch
+- [scan_nodes_by_types](/api/node-operations/scan-nodes-by-types) - Scan for nodes of specific types

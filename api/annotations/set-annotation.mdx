@@ -1,0 +1,203 @@
+---
+title: "set_annotation"
+description: "Create or update a single annotation on a Figma node"
+---
+
+Creates a new annotation or updates an existing one. Annotations are Figma's native way to add design notes, implementation details, or any contextual information directly to design elements.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to annotate (can be any visible node: FRAME, COMPONENT, INSTANCE, TEXT, etc.)
+</ParamField>
+
+<ParamField path="labelMarkdown" type="string" required>
+  The annotation text in markdown format. Supports:
+  - **Bold**: `**text**`
+  - *Italic*: `*text*`
+  - Links: `[text](url)`
+  - Code: `` `code` ``
+  - Lists, headers, and more
+</ParamField>
+
+<ParamField path="annotationId" type="string">
+  The ID of an existing annotation to update. Omit to create a new annotation.
+</ParamField>
+
+<ParamField path="categoryId" type="string">
+  The ID of the annotation category. Use `get_annotations()` with `includeCategories: true` to retrieve available categories.
+</ParamField>
+
+<ParamField path="properties" type="array">
+  Additional properties for the annotation. Each property is an object with a `type` field.
+  
+  ```typescript
+  properties: [{ type: "propertyType" }]
+  ```
+</ParamField>
+
+## Response
+
+Returns a JSON object containing:
+- `success`: Boolean indicating operation success
+- `annotationId`: ID of the created or updated annotation
+- `nodeId`: ID of the annotated node
+- `message`: Status message
+
+## Usage
+
+<CodeGroup>
+```typescript Create new annotation
+const result = await set_annotation({
+  nodeId: "123:456",
+  labelMarkdown: "**Login Button**: Triggers authentication flow",
+  categoryId: "dev-notes"
+});
+```
+
+```typescript Update existing annotation
+const result = await set_annotation({
+  nodeId: "123:456",
+  annotationId: "existing-annotation-id",
+  labelMarkdown: "Updated annotation text",
+  categoryId: "design-spec"
+});
+```
+
+```typescript Rich markdown annotation
+const result = await set_annotation({
+  nodeId: "123:456",
+  labelMarkdown: `**Component Usage**
+  
+  Use for primary CTAs. See [design system](https://example.com/ds).
+  
+  - Max width: 320px
+  - Min height: 44px
+  - Use \`variant="primary"\` prop`,
+  categoryId: "implementation"
+});
+```
+</CodeGroup>
+
+## Markdown Formatting Examples
+
+### Basic formatting
+```markdown
+**Bold text** for emphasis
+*Italic text* for subtlety
+[Link to docs](https://example.com)
+`code snippets` inline
+```
+
+### Structured annotations
+```markdown
+**Button Component**
+
+Implementation notes:
+- Use `onClick` handler for primary action
+- Supports `disabled` state
+- See [Storybook](https://storybook.example.com)
+
+Design tokens:
+- Color: `$primary-blue`
+- Padding: `16px 24px`
+```
+
+## Workflow: Single Node Annotation
+
+Typical workflow for annotating a single element:
+
+```typescript
+// 1. Get the node to annotate
+const selection = await get_selection();
+const targetNode = selection[0];
+
+// 2. Get available categories
+const { categories } = await get_annotations({
+  nodeId: targetNode.id,
+  includeCategories: true
+});
+
+// 3. Apply annotation
+const result = await set_annotation({
+  nodeId: targetNode.id,
+  labelMarkdown: "**Header Component**: Main navigation bar",
+  categoryId: categories[0].id  // Use first available category
+});
+
+console.log(`Annotation created: ${result.annotationId}`);
+```
+
+## Use Cases
+
+### Design specifications
+Document design decisions and constraints:
+
+```typescript
+await set_annotation({
+  nodeId: cardComponentId,
+  labelMarkdown: `**Card Specifications**
+  
+  - Border radius: 8px
+  - Shadow: 0 2px 8px rgba(0,0,0,0.1)
+  - Padding: 24px
+  - Max width: 400px`,
+  categoryId: "design-spec"
+});
+```
+
+### Implementation notes
+Provide context for developers:
+
+```typescript
+await set_annotation({
+  nodeId: formFieldId,
+  labelMarkdown: `**Validation Rules**
+  
+  - Required field
+  - Min 8 characters
+  - Must include special character
+  - See [validation docs](https://docs.example.com)`,
+  categoryId: "dev-notes"
+});
+```
+
+### Interactive prototyping notes
+Document interaction behaviors:
+
+```typescript
+await set_annotation({
+  nodeId: buttonId,
+  labelMarkdown: `**Interaction**
+  
+  On click:
+  1. Show loading state
+  2. Submit form data
+  3. Navigate to /dashboard
+  
+  Error handling: Display toast notification`,
+  categoryId: "interaction"
+});
+```
+
+## Best Practices
+
+1. **Use structured markdown**: Leverage headers, lists, and formatting for clarity
+2. **Be concise**: Keep annotations focused on essential information
+3. **Link to docs**: Use markdown links to reference external documentation
+4. **Choose appropriate categories**: Use categories to organize annotation types
+5. **Update existing annotations**: Use `annotationId` to update rather than duplicate
+
+## Related Tools
+
+<CardGroup cols={2}>
+  <Card title="get_annotations" icon="list" href="/api/annotations/get-annotations">
+    Retrieve existing annotations and categories
+  </Card>
+  <Card title="set_multiple_annotations" icon="pen-to-square" href="/api/annotations/set-multiple-annotations">
+    Batch annotate multiple nodes
+  </Card>
+  <Card title="scan_nodes_by_types" icon="magnifying-glass" href="/api/annotations/scan-nodes-by-types">
+    Find nodes that need annotations
+  </Card>
+</CardGroup>

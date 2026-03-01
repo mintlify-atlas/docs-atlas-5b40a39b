@@ -1,0 +1,393 @@
+---
+title: "Text Operations Best Practices"
+description: "Best practices for text replacement and manipulation in Figma designs"
+---
+
+## Intelligent Text Replacement Strategy
+
+When working with text in Figma designs, following a systematic approach ensures design integrity while efficiently updating content.
+
+### Overview
+
+The text replacement workflow involves:
+
+1. Analyzing design structure
+2. Strategic chunking for complex designs
+3. Progressive replacement with verification
+4. Final quality assurance
+
+## Step 1: Analyze Design Structure
+
+### Scan Text Nodes
+
+Begin by understanding the text content and structure:
+
+```typescript
+// Scan all text nodes in selected frame
+const textNodes = await scan_text_nodes({ nodeId: "frame-id" });
+
+// Optional: Get node structure
+const nodeInfo = await get_node_info({ nodeId: "frame-id" });
+```
+
+### Identify Logical Groupings
+
+Use AI pattern recognition to identify structure:
+
+- **Tables** - Rows, columns, headers, cells
+- **Lists** - Items, headers, nested lists
+- **Card groups** - Recurring text fields in similar cards
+- **Forms** - Labels, input fields, validation text
+- **Navigation** - Menu items, breadcrumbs
+
+<Tip>
+Understanding the design structure before replacement helps maintain consistency and relationships between text elements.
+</Tip>
+
+## Step 2: Strategic Chunking
+
+### Chunking Strategies
+
+Divide replacement tasks into logical chunks based on design structure:
+
+#### Structural Chunking
+Group by design components:
+- Table rows or columns
+- List sections
+- Card groups
+
+#### Spatial Chunking
+Organize by position:
+- Top-to-bottom sections
+- Left-to-right regions
+- Screen areas
+
+#### Semantic Chunking
+Group by meaning:
+- Related content topics
+- Similar functionality
+- User journey steps
+
+#### Component-Based Chunking
+Process similar components together:
+- Component instances
+- Repeated patterns
+- Design system elements
+
+<Note>
+Choose the chunking strategy that best fits your design structure. You can combine strategies for complex designs.
+</Note>
+
+## Step 3: Progressive Replacement
+
+### Create Safe Copy
+
+Before making changes, create a backup:
+
+```typescript
+// Clone the node for safe editing
+const clonedNode = await clone_node({
+  nodeId: "selected-node-id",
+  x: 1000,  // Offset position
+  y: 0
+});
+```
+
+### Replace Text in Chunks
+
+Use batch operations for efficiency:
+
+```typescript
+// Replace multiple text nodes at once
+await set_multiple_text_contents({
+  nodeId: "parent-node-id",
+  text: [
+    { nodeId: "text-node-1", text: "Updated text 1" },
+    { nodeId: "text-node-2", text: "Updated text 2" },
+    { nodeId: "text-node-3", text: "Updated text 3" }
+    // Process 5-10 nodes per chunk for optimal performance
+  ]
+});
+```
+
+<Warning>
+`set_multiple_text_contents` processes text in batches of 5. For large operations, the plugin will automatically chunk and report progress.
+</Warning>
+
+### Verify Each Chunk
+
+After processing each chunk:
+
+1. Export section as image for visual verification
+2. Check text fits properly within containers
+3. Verify design integrity is maintained
+4. Fix issues before proceeding
+
+```typescript
+// Export chunk for verification
+await export_node_as_image({
+  nodeId: "chunk-node-id",
+  format: "PNG",
+  scale: 0.5  // Adjust based on chunk size
+});
+```
+
+## Step 4: Handling Specific Design Types
+
+### Tables
+
+Best practices for tabular data:
+
+```typescript
+// Process rows in logical groups
+// Include header row in first chunk for reference
+await set_multiple_text_contents({
+  nodeId: "table-id",
+  text: [
+    // Header row
+    { nodeId: "header-1", text: "Column 1" },
+    { nodeId: "header-2", text: "Column 2" },
+    // Data rows (5-10 rows per chunk)
+    { nodeId: "row1-col1", text: "Data 1-1" },
+    { nodeId: "row1-col2", text: "Data 1-2" },
+    // ...
+  ]
+});
+```
+
+**Key considerations:**
+- Process 5-10 rows per chunk
+- Alternative: Process by column for columnar analysis
+- Maintain alignment and spacing
+- Preserve header/data relationships
+
+### Card Lists
+
+For repeating card patterns:
+
+- Group 3-5 similar cards per chunk
+- Process entire cards to maintain internal consistency
+- Verify text-to-image ratio within cards
+
+```typescript
+// Process cards as complete units
+await set_multiple_text_contents({
+  nodeId: "card-list-id",
+  text: [
+    // Card 1 - all text nodes
+    { nodeId: "card1-title", text: "Title 1" },
+    { nodeId: "card1-desc", text: "Description 1" },
+    { nodeId: "card1-meta", text: "Metadata 1" },
+    // Card 2 - all text nodes
+    { nodeId: "card2-title", text: "Title 2" },
+    // ...
+  ]
+});
+```
+
+### Forms
+
+For form designs:
+
+- Group related fields (e.g., "Personal Information", "Payment Details")
+- Process labels and input fields together
+- Update validation messages with their fields
+
+```typescript
+// Group related form sections
+await set_multiple_text_contents({
+  nodeId: "form-id",
+  text: [
+    // Personal info section
+    { nodeId: "section-label", text: "Personal Information" },
+    { nodeId: "name-label", text: "Full Name" },
+    { nodeId: "name-placeholder", text: "Enter your name" },
+    { nodeId: "email-label", text: "Email Address" },
+    { nodeId: "email-placeholder", text: "your.email@example.com" },
+  ]
+});
+```
+
+### Navigation & Menus
+
+- Process hierarchical levels together (main menu, submenu)
+- Respect information architecture relationships
+- Verify menu fit and alignment after replacement
+
+## Step 5: Smart Text Adaptation
+
+### Handling Space Constraints
+
+Adapt text to container constraints:
+
+- Auto-detect space limitations
+- Adjust text length when necessary
+- Apply line breaks at linguistic boundaries
+- Maintain text hierarchy and emphasis
+- Consider font scaling for critical content
+
+<Tip>
+For auto-layout frames with `HUG` sizing, text containers will automatically resize. For `FIXED` sizing, you may need to adjust text length or container size.
+</Tip>
+
+## Step 6: Export Scale Guidelines
+
+Adjust export scale based on chunk size for verification:
+
+| Chunk Size | Elements | Recommended Scale |
+|------------|----------|------------------|
+| Small | 1-5 | 1.0 |
+| Medium | 6-20 | 0.7 |
+| Large | 21-50 | 0.5 |
+| Very Large | 50+ | 0.3 |
+| Full Design | All | 0.2 |
+
+```typescript
+// Scale based on chunk size
+const scale = elementsCount <= 5 ? 1.0 :
+              elementsCount <= 20 ? 0.7 :
+              elementsCount <= 50 ? 0.5 : 0.3;
+
+await export_node_as_image({
+  nodeId: "chunk-id",
+  format: "PNG",
+  scale: scale
+});
+```
+
+<Note>
+Exports are currently limited and return base64 text. This feature is primarily for verification purposes.
+</Note>
+
+## Step 7: Final Verification
+
+After all chunks are processed:
+
+1. Export entire design at reduced scale (0.2)
+2. Check cross-chunk consistency
+3. Verify text flow between sections
+4. Ensure design harmony across composition
+
+```typescript
+// Final full design verification
+await export_node_as_image({
+  nodeId: "main-frame-id",
+  format: "PNG",
+  scale: 0.2
+});
+```
+
+## Performance Best Practices
+
+### Batch Size Recommendations
+
+<Warning>
+The MCP server has a 30-second timeout per command. Progress updates from the plugin reset this timer, but plan your batches accordingly.
+</Warning>
+
+- **Optimal batch size**: 5-10 text nodes
+- **Maximum batch size**: 20 nodes
+- **Large designs**: Use chunking with progress monitoring
+
+### Scanning Large Designs
+
+Enable chunking for designs with many text nodes:
+
+```typescript
+await scan_text_nodes({
+  nodeId: "large-frame-id",
+  useChunking: true,
+  chunkSize: 10  // Process 10 nodes at a time
+});
+```
+
+## Single Text Updates
+
+For individual text changes, use `set_text_content`:
+
+```typescript
+await set_text_content({
+  nodeId: "text-node-id",
+  text: "New text content"
+});
+```
+
+<Tip>
+Always prefer `set_multiple_text_contents` when updating more than one text node. It's significantly more efficient.
+</Tip>
+
+## Design Integrity Checklist
+
+- [ ] Analyze design structure before replacement
+- [ ] Choose appropriate chunking strategy
+- [ ] Create safe copy with `clone_node`
+- [ ] Use `set_multiple_text_contents` for batches
+- [ ] Process 5-10 nodes per chunk
+- [ ] Export and verify each chunk
+- [ ] Maintain structural relationships
+- [ ] Check alignment and spacing
+- [ ] Verify text fits in containers
+- [ ] Final full design verification
+- [ ] Preserve design intent and hierarchy
+
+## Common Patterns
+
+### Bulk Content Translation
+
+```typescript
+// 1. Scan text nodes
+const textNodes = await scan_text_nodes({ nodeId: "page-id" });
+
+// 2. Translate content (external process)
+const translations = translateContent(textNodes);
+
+// 3. Apply in chunks
+for (let i = 0; i < translations.length; i += 10) {
+  const chunk = translations.slice(i, i + 10);
+  await set_multiple_text_contents({
+    nodeId: "page-id",
+    text: chunk
+  });
+  
+  // Verify chunk
+  await export_node_as_image({
+    nodeId: chunk[0].nodeId,
+    format: "PNG",
+    scale: 0.5
+  });
+}
+```
+
+### Dynamic Content Population
+
+```typescript
+// Populate card list with API data
+const cards = await fetchCardData();
+
+const textUpdates = cards.flatMap(card => [
+  { nodeId: card.titleNodeId, text: card.title },
+  { nodeId: card.descNodeId, text: card.description },
+  { nodeId: card.authorNodeId, text: card.author }
+]);
+
+await set_multiple_text_contents({
+  nodeId: "card-container-id",
+  text: textUpdates
+});
+```
+
+## Troubleshooting
+
+### Text Doesn't Fit Container
+
+- Check container sizing mode (`FIXED` vs `HUG`)
+- Adjust text length or use abbreviations
+- Consider increasing container size with `resize_node`
+- Use appropriate font size with `create_text` parameters
+
+### Text Not Updating
+
+- Verify node ID is correct
+- Check node is actually a TEXT node
+- Ensure text layer is not locked in Figma
+- Verify WebSocket connection is active

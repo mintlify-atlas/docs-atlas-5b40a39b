@@ -1,0 +1,103 @@
+---
+title: get_reactions
+description: Extract prototype flow information from Figma nodes to visualize interaction patterns
+---
+
+## Overview
+
+The `get_reactions` tool extracts Figma's native prototyping reactions (click handlers, navigation flows, overlay behaviors) from one or more nodes. This data reveals how users flow through a prototype and can be transformed into visual connector lines on the canvas.
+
+**Critical workflow:** The output from this tool **must** be processed using the `reaction_to_connector_strategy` prompt to prepare parameters for the `create_connections` tool.
+
+## Parameters
+
+<ParamField path="nodeIds" type="string[]" required>
+  Array of node IDs to extract reactions from. Each node is checked for prototype interactions (ON_CLICK, ON_DRAG, etc.) and their associated actions (NAVIGATE, OPEN_OVERLAY, etc.).
+</ParamField>
+
+## Returns
+
+JSON array containing nodes with their reactions. Each reaction includes:
+
+- **trigger**: The interaction that starts the flow (e.g., `ON_CLICK`, `ON_DRAG`)
+- **action**: The resulting behavior with properties:
+  - `type`: Action type (e.g., `NAVIGATE`, `OPEN_OVERLAY`, `SWAP_OVERLAY`, `CLOSE_OVERLAY`)
+  - `destinationId`: Target node ID (for navigation/overlay actions)
+  - `navigationTransition`: Animation settings
+  - `preserveScrollPosition`: Scroll behavior flag
+
+## Typical Reaction Structure
+
+```json
+{
+  "trigger": { "type": "ON_CLICK" },
+  "action": {
+    "type": "NAVIGATE",
+    "destinationId": "123:456",
+    "navigationTransition": { "type": "DISSOLVE", "duration": 300 },
+    "preserveScrollPosition": false
+  }
+}
+```
+
+## Example Usage
+
+### Extract reactions from selected frames
+
+```typescript
+// First, get the selection
+const selection = await get_selection();
+const frameIds = selection.map(node => node.id);
+
+// Extract all reactions
+const reactions = await get_reactions({ nodeIds: frameIds });
+
+// The tool automatically prompts you to follow reaction_to_connector_strategy
+// to convert this data into connector lines
+```
+
+### Visualize prototype flows
+
+```typescript
+// Step 1: Get reactions from interactive elements
+const buttonIds = ["101:1", "101:2", "101:3"];
+const reactionData = await get_reactions({ nodeIds: buttonIds });
+
+// Step 2: Follow the reaction_to_connector_strategy prompt
+// This will guide you to:
+// - Filter reactions with valid destinations
+// - Generate descriptive labels
+// - Call create_connections with the prepared data
+
+// The strategy converts reactions like:
+// { trigger: "ON_CLICK", action: { type: "NAVIGATE", destinationId: "202:5" } }
+// Into connector params like:
+// { startNodeId: "101:1", endNodeId: "202:5", text: "On click, navigate to Dashboard" }
+```
+
+## Use Cases
+
+### Prototype flow documentation
+
+Extract all navigation paths to create a visual site map or user flow diagram directly on the Figma canvas.
+
+### Interaction audit
+
+Identify which screens have navigation configured and which are missing prototype connections.
+
+### Flow validation
+
+Verify that all interactive elements lead to valid destinations and no prototype links are broken.
+
+## Notes
+
+- Only returns reactions that are explicitly configured in Figma's prototype panel
+- Not all action types have a `destinationId` (e.g., `CLOSE_OVERLAY` closes the current overlay)
+- Filter for action types like `NAVIGATE`, `OPEN_OVERLAY`, `SWAP_OVERLAY` when visualizing flows
+- The tool response includes a follow-up reminder to use the `reaction_to_connector_strategy` prompt
+
+## Related Tools
+
+- [create_connections](/api/prototyping-connections/create-connections) - Draw connector lines between nodes
+- [set_default_connector](/api/prototyping-connections/set-default-connector) - Configure connector style
+- **reaction_to_connector_strategy** prompt - Systematic guide for converting reactions to connectors

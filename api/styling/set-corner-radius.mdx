@@ -1,0 +1,81 @@
+---
+title: 'set_corner_radius'
+description: 'Set the corner radius of a node in Figma'
+icon: 'border-radius'
+---
+
+Sets the corner radius of a Figma node. You can apply the same radius to all corners or control each corner individually.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to modify
+</ParamField>
+
+<ParamField path="radius" type="number" required>
+  Corner radius value in pixels (minimum: 0)
+</ParamField>
+
+<ParamField path="corners" type="boolean[]">
+  Array of 4 booleans to specify which corners to round: `[topLeft, topRight, bottomRight, bottomLeft]`. Defaults to `[true, true, true, true]` (all corners)
+</ParamField>
+
+## Response
+
+Returns the name of the modified node and confirms the corner radius change.
+
+## Per-corner control
+
+The `corners` parameter allows you to selectively round specific corners. Each boolean in the array controls one corner:
+
+- `corners[0]` - Top-left corner
+- `corners[1]` - Top-right corner
+- `corners[2]` - Bottom-right corner
+- `corners[3]` - Bottom-left corner
+
+Set a boolean to `true` to apply the radius to that corner, or `false` to keep it sharp (0px radius).
+
+## Examples
+
+### Round all corners equally
+
+```json
+{
+  "nodeId": "123:456",
+  "radius": 8
+}
+```
+
+### Round only top corners
+
+```json
+{
+  "nodeId": "123:456",
+  "radius": 12,
+  "corners": [true, true, false, false]
+}
+```
+
+### Round only bottom-left corner
+
+```json
+{
+  "nodeId": "123:456",
+  "radius": 16,
+  "corners": [false, false, false, true]
+}
+```
+
+### Round right side corners
+
+```json
+{
+  "nodeId": "123:456",
+  "radius": 10,
+  "corners": [false, true, true, false]
+}
+```
+
+<Tip>
+  For pill-shaped buttons or cards, set the radius to half the node's height and round all corners.
+</Tip>

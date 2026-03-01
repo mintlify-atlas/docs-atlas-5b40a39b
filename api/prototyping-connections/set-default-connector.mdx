@@ -1,0 +1,131 @@
+---
+title: set_default_connector
+description: Configure a FigJam connector style as the template for creating prototype flow visualizations
+---
+
+## Overview
+
+The `set_default_connector` tool registers a FigJam connector node as the default style template. All subsequent calls to `create_connections` will clone this connector's appearance (color, stroke weight, arrow style, etc.).
+
+**FigJam workflow:** Copy a connector from FigJam, paste it onto your Figma page, select it, then set it as default.
+
+## Parameters
+
+<ParamField path="connectorId" type="string" optional>
+  The node ID of the connector to use as the default template. 
+  
+  - **If provided:** Sets the specified connector as default
+  - **If omitted:** Checks whether a default connector is already configured
+</ParamField>
+
+## Returns
+
+JSON response indicating the operation result:
+
+- **Success with connectorId**: `{ success: true, message: "Default connector set", connectorId: "..." }`
+- **Already set (no connectorId)**: `{ success: true, message: "Default connector is already set", ... }`
+- **Not set (no connectorId)**: `{ success: false, message: "No default connector set. Please copy a connector from FigJam..." }`
+
+## Example Usage
+
+### Check if default connector exists
+
+```typescript
+// Call without parameters to check status
+const status = await set_default_connector({});
+
+if (status.success) {
+  console.log("Default connector ready for use");
+} else {
+  console.log("Need to set up a connector first");
+}
+```
+
+### Set a connector as default
+
+```typescript
+// Step 1: Copy a connector from FigJam and paste it on your page
+// Step 2: Select the pasted connector
+const selection = await get_selection();
+const connectorNode = selection[0]; // Assuming the connector is selected
+
+// Step 3: Set it as the default
+await set_default_connector({ connectorId: connectorNode.id });
+
+// Now create_connections will use this connector's style
+```
+
+### Full workflow for prototype visualization
+
+```typescript
+// 1. Verify default connector status
+const connectorStatus = await set_default_connector({});
+
+if (!connectorStatus.success) {
+  // Instruct user to:
+  // - Open FigJam
+  // - Create/select a connector with desired styling
+  // - Copy it (Cmd/Ctrl+C)
+  // - Switch back to Figma design file
+  // - Paste (Cmd/Ctrl+V) onto the current page
+  // - Select the pasted connector
+  // - Run: set_default_connector({ connectorId: "SELECTED_NODE_ID" })
+  
+  console.log("Please set up a connector before creating connections");
+  return;
+}
+
+// 2. Extract reactions
+const reactions = await get_reactions({ nodeIds: ["101:1", "101:2"] });
+
+// 3. Process reactions with reaction_to_connector_strategy prompt
+// (Follow the strategy to generate connections array)
+
+// 4. Create visual connectors
+await create_connections({
+  connections: [
+    { startNodeId: "101:1", endNodeId: "202:1", text: "On click, navigate" },
+    { startNodeId: "101:2", endNodeId: "202:3", text: "On hover, open overlay" }
+  ]
+});
+```
+
+## FigJam Connector Setup
+
+### Why FigJam connectors?
+
+FigJam connectors provide rich styling options (colors, arrows, line styles) that aren't available in standard Figma design files. By copying one over, you bring these visual properties into your design environment.
+
+### Steps to prepare
+
+1. **Open a FigJam file** (or create a new one)
+2. **Draw a connector line** between two shapes
+3. **Customize the connector:**
+   - Stroke color
+   - Stroke weight
+   - Arrow style (none, single, double)
+   - Line style (solid, dashed)
+4. **Select and copy** the connector (Cmd/Ctrl+C)
+5. **Switch to your Figma design file**
+6. **Paste** the connector onto the page where you'll create connections (Cmd/Ctrl+V)
+7. **Keep it selected** or note its ID
+8. **Run:** `set_default_connector({ connectorId: "PASTE_NODE_ID" })`
+
+### Best practices
+
+- Use a distinct color to differentiate prototype flows from design elements
+- Keep the default connector on a dedicated layer or frame (e.g., "Connector Templates")
+- Test with a single connection before batch-creating many connectors
+
+## Notes
+
+- The default connector is stored in plugin memory for the current session
+- If the plugin is closed or the file is reopened, you may need to re-set the default
+- The connector itself is **not** deleted when set as default—it remains on the canvas as a reference
+- You can change the default connector anytime by calling `set_default_connector` with a different `connectorId`
+
+## Related Tools
+
+- [get_reactions](/api/prototyping-connections/get-reactions) - Extract prototype flows
+- [create_connections](/api/prototyping-connections/create-connections) - Draw connector lines using the default style
+- **reaction_to_connector_strategy** prompt - Complete workflow for visualizing prototype flows

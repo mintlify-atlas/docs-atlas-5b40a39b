@@ -1,0 +1,625 @@
+---
+title: 'WebSocket Relay Server'
+description: 'Deep dive into the Bun-powered relay that routes messages between components'
+icon: 'server'
+---
+
+## Overview
+
+The WebSocket relay is a **lightweight Bun-powered server** that acts as a message router between MCP servers and Figma plugins. It runs on **port 3055** by default and provides channel-based message isolation.
+
+## Why a Relay Server?
+
+The relay solves several architectural challenges:
+
+<AccordionGroup>
+  <Accordion title="Protocol Mismatch">
+    MCP servers communicate via **stdio** with AI agents, but need **WebSocket** connectivity to reach Figma plugins. The relay bridges this gap.
+  </Accordion>
+  
+  <Accordion title="Multi-User Support">
+    Multiple users can run MCP servers simultaneously on the same machine. The relay uses **channel isolation** to prevent message conflicts.
+  </Accordion>
+  
+  <Accordion title="Connection Management">
+    The relay handles WebSocket lifecycle events (connect, disconnect, reconnect) and maintains client state across channels.
+  </Accordion>
+  
+  <Accordion title="Message Broadcasting">
+    The relay efficiently broadcasts messages to all clients in a channel **except the sender**, preventing echo loops.
+  </Accordion>
+</AccordionGroup>
+
+## Server Architecture
+
+### Core Components
+
+```typescript socket.ts
+import { Server, ServerWebSocket } from "bun";
+
+// Store clients by channel
+const channels = new Map<string, Set<ServerWebSocket<any>>>();
+
+const server = Bun.serve({
+  port: 3055,
+  websocket: {
+    open: handleConnection,
+    message: handleMessage,
+    close: handleClose
+  }
+});
+
+console.log(`WebSocket server running on port ${server.port}`);
+```
+
+### Data Structures
+
+The relay uses a **Map of Sets** to organize clients by channel:
+
+```typescript
+// Type definition
+type Channels = Map<string, Set<ServerWebSocket<any>>>;
+
+// Example state:
+channels = Map {
+  "my-project" => Set { ws1, ws2 },
+  "design-team" => Set { ws3 },
+  "prototype" => Set { ws4, ws5, ws6 }
+}
+```
+
+<Info>
+  This structure provides **O(1) channel lookups** and **O(n) broadcast operations** within a channel.
+</Info>
+
+## Connection Lifecycle
+
+### 1. Client Connection
+
+When a client connects, they receive a welcome message:
+
+```typescript socket.ts
+function handleConnection(ws: ServerWebSocket<any>) {
+  console.log("New client connected");
+  
+  // Send welcome message
+  ws.send(JSON.stringify({
+    type: "system",
+    message: "Please join a channel to start chatting"
+  }));
+  
+  // Note: Client is NOT added to any channel yet
+}
+```
+
+<Warning>
+  Clients cannot send or receive messages until they join a channel.
+</Warning>
+
+### 2. Joining a Channel
+
+Clients send a join message to enter a channel:
+
+```json
+{
+  "type": "join",
+  "channel": "my-project"
+}
+```
+
+The relay processes the join request:
+
+```typescript socket.ts
+if (data.type === "join") {
+  const channelName = data.channel;
+  
+  if (!channelName || typeof channelName !== "string") {
+    ws.send(JSON.stringify({
+      type: "error",
+      message: "Channel name is required"
+    }));
+    return;
+  }
+  
+  // Create channel if it doesn't exist
+  if (!channels.has(channelName)) {
+    channels.set(channelName, new Set());
+  }
+  
+  // Add client to channel
+  const channelClients = channels.get(channelName)!;
+  channelClients.add(ws);
+  
+  console.log(`✓ Client joined channel "${channelName}" (${channelClients.size} total clients)`);
+  
+  // Notify client of successful join
+  ws.send(JSON.stringify({
+    type: "system",
+    message: `Joined channel: ${channelName}`,
+    channel: channelName
+  }));
+  
+  // Notify other clients in channel
+  channelClients.forEach((client) => {
+    if (client !== ws && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: "system",
+        message: "A new user has joined the channel",
+        channel: channelName
+      }));
+    }
+  });
+}
+```
+
+### 3. Sending Messages
+
+Once in a channel, clients can exchange messages:
+
+```json
+{
+  "type": "message",
+  "channel": "my-project",
+  "message": {
+    "id": "abc-123",
+    "command": "create_frame",
+    "params": { /* ... */ }
+  }
+}
+```
+
+The relay broadcasts to channel members:
+
+```typescript socket.ts
+if (data.type === "message") {
+  const channelName = data.channel;
+  
+  if (!channelName || typeof channelName !== "string") {
+    ws.send(JSON.stringify({
+      type: "error",
+      message: "Channel name is required"
+    }));
+    return;
+  }
+  
+  const channelClients = channels.get(channelName);
+  if (!channelClients || !channelClients.has(ws)) {
+    ws.send(JSON.stringify({
+      type: "error",
+      message: "You must join the channel first"
+    }));
+    return;
+  }
+  
+  // Broadcast to all OTHER clients (not the sender)
+  let broadcastCount = 0;
+  channelClients.forEach((client) => {
+    if (client !== ws && client.readyState === WebSocket.OPEN) {
+      broadcastCount++;
+      const broadcastMessage = {
+        type: "broadcast",
+        message: data.message,
+        sender: "peer",
+        channel: channelName
+      };
+      console.log(`=== Broadcasting to peer #${broadcastCount} ===`);
+      console.log(JSON.stringify(broadcastMessage, null, 2));
+      client.send(JSON.stringify(broadcastMessage));
+    }
+  });
+  
+  if (broadcastCount === 0) {
+    console.log(`⚠️  No other clients in channel "${channelName}" to receive message!`);
+  } else {
+    console.log(`✓ Broadcast to ${broadcastCount} peer(s) in channel "${channelName}"`);
+  }
+}
+```
+
+<Check>
+  The relay **excludes the sender** from broadcasts to prevent echo loops and ensure clean request-response flow.
+</Check>
+
+### 4. Client Disconnection
+
+When a client disconnects, they're removed from all channels:
+
+```typescript socket.ts
+function handleClose(ws: ServerWebSocket<any>) {
+  console.log("Client disconnected");
+  
+  // Remove client from all channels
+  channels.forEach((clients, channelName) => {
+    if (clients.has(ws)) {
+      clients.delete(ws);
+      
+      // Notify remaining clients
+      clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: "system",
+            message: "A user has left the channel",
+            channel: channelName
+          }));
+        }
+      });
+    }
+  });
+}
+```
+
+## Message Format
+
+### Join Message
+
+```typescript
+interface JoinMessage {
+  type: "join";
+  channel: string;
+}
+```
+
+### Regular Message
+
+```typescript
+interface RegularMessage {
+  type: "message";
+  channel: string;
+  message: {
+    id: string;
+    command?: string;
+    params?: any;
+    result?: any;
+    error?: string;
+  };
+}
+```
+
+### Broadcast Message (relayed)
+
+```typescript
+interface BroadcastMessage {
+  type: "broadcast";
+  message: any;
+  sender: "peer";
+  channel: string;
+}
+```
+
+### System Message
+
+```typescript
+interface SystemMessage {
+  type: "system";
+  message: string;
+  channel?: string;
+}
+```
+
+### Error Message
+
+```typescript
+interface ErrorMessage {
+  type: "error";
+  message: string;
+}
+```
+
+## Configuration
+
+### Port Configuration
+
+The relay port is configurable via environment variable:
+
+```bash
+# Default port
+bun socket
+# Runs on port 3055
+
+# Custom port
+PORT=8080 bun socket
+# Runs on port 8080
+```
+
+Read from environment in code:
+
+```typescript socket.ts
+const server = Bun.serve({
+  port: process.env.PORT || 3055,
+  // ...
+});
+```
+
+### Host Configuration
+
+For WSL or remote access, uncomment the hostname option:
+
+```typescript socket.ts
+const server = Bun.serve({
+  port: 3055,
+  hostname: "0.0.0.0", // Allow external connections
+  // ...
+});
+```
+
+<Warning>
+  Binding to `0.0.0.0` exposes the relay to your network. Only use this in trusted environments.
+</Warning>
+
+### CORS Headers
+
+The relay includes CORS headers for browser-based clients:
+
+```typescript socket.ts
+fetch(req: Request, server: Server) {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    });
+  }
+  
+  // Handle WebSocket upgrade
+  const success = server.upgrade(req, {
+    headers: {
+      "Access-Control-Allow-Origin": "*"
+    }
+  });
+  
+  if (success) {
+    return; // Upgraded to WebSocket
+  }
+  
+  return new Response("WebSocket server running", {
+    headers: {
+      "Access-Control-Allow-Origin": "*"
+    }
+  });
+}
+```
+
+## Logging and Debugging
+
+The relay provides detailed console logging:
+
+```typescript socket.ts
+message(ws: ServerWebSocket<any>, message: string | Buffer) {
+  try {
+    const data = JSON.parse(message as string);
+    
+    console.log(`\n=== Received message from client ===`);
+    console.log(`Type: ${data.type}, Channel: ${data.channel || 'N/A'}`);
+    
+    if (data.message?.command) {
+      console.log(`Command: ${data.message.command}, ID: ${data.id}`);
+    } else if (data.message?.result) {
+      console.log(`Response: ID: ${data.id}, Has Result: ${!!data.message.result}`);
+    }
+    
+    console.log(`Full message:`, JSON.stringify(data, null, 2));
+    
+    // ... handle message ...
+  } catch (err) {
+    console.error("Error handling message:", err);
+  }
+}
+```
+
+### Example Log Output
+
+```
+WebSocket server running on port 3055
+
+New client connected
+
+=== Received message from client ===
+Type: join, Channel: my-project
+Full message: {
+  "type": "join",
+  "channel": "my-project"
+}
+✓ Client joined channel "my-project" (1 total clients)
+
+=== Received message from client ===
+Type: message, Channel: my-project
+Command: create_frame, ID: abc-123
+Full message: {
+  "type": "message",
+  "channel": "my-project",
+  "message": {
+    "id": "abc-123",
+    "command": "create_frame",
+    "params": { /* ... */ }
+  }
+}
+=== Broadcasting to peer #1 ===
+{
+  "type": "broadcast",
+  "message": { /* ... */ },
+  "sender": "peer",
+  "channel": "my-project"
+}
+✓ Broadcast to 1 peer(s) in channel "my-project"
+```
+
+## Performance Characteristics
+
+### Benchmarks
+
+- **Channel lookup**: O(1) using Map
+- **Client broadcast**: O(n) where n = clients in channel
+- **Join/leave**: O(1) for Set operations
+- **Memory**: ~100 bytes per client per channel
+
+### Scalability
+
+The relay is designed for **local development**, not high-scale production:
+
+- **Supported**: 1-10 clients per channel, 1-10 active channels
+- **Memory**: Grows linearly with client count
+- **CPU**: Minimal (less than 1% on modern hardware)
+- **Network**: No compression or batching optimizations
+
+<Info>
+  For production deployments, consider using a battle-tested WebSocket server like Socket.IO or Centrifugo.
+</Info>
+
+## Starting the Relay
+
+### Development Mode
+
+```bash
+# Start relay in one terminal
+bun socket
+
+# Output:
+# WebSocket server running on port 3055
+```
+
+### Production Mode
+
+For production, use a process manager like PM2:
+
+```bash
+# Install PM2
+npm install -g pm2
+
+# Start relay with PM2
+pm2 start "bun socket" --name figma-relay
+
+# Monitor
+pm2 logs figma-relay
+
+# Stop
+pm2 stop figma-relay
+```
+
+### Docker Deployment
+
+Example Dockerfile for containerized deployment:
+
+```dockerfile
+FROM oven/bun:1
+
+WORKDIR /app
+
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
+
+COPY src/socket.ts ./src/
+
+EXPOSE 3055
+
+CMD ["bun", "socket"]
+```
+
+Build and run:
+
+```bash
+docker build -t figma-relay .
+docker run -p 3055:3055 figma-relay
+```
+
+## Error Handling
+
+The relay handles common error scenarios:
+
+### Invalid JSON
+
+```typescript
+message(ws, message) {
+  try {
+    const data = JSON.parse(message as string);
+    // ...
+  } catch (err) {
+    console.error("Error handling message:", err);
+    ws.send(JSON.stringify({
+      type: "error",
+      message: "Invalid JSON message"
+    }));
+  }
+}
+```
+
+### Missing Channel Name
+
+```typescript
+if (!channelName || typeof channelName !== "string") {
+  ws.send(JSON.stringify({
+    type: "error",
+    message: "Channel name is required"
+  }));
+  return;
+}
+```
+
+### Not in Channel
+
+```typescript
+if (!channelClients || !channelClients.has(ws)) {
+  ws.send(JSON.stringify({
+    type: "error",
+    message: "You must join the channel first"
+  }));
+  return;
+}
+```
+
+## Troubleshooting
+
+### "Connection refused" on port 3055
+
+**Cause**: Relay server is not running.
+
+**Solution**:
+```bash
+bun socket
+```
+
+### "No other clients in channel"
+
+**Cause**: Only one client in the channel.
+
+**Solution**: Connect both MCP server and Figma plugin to the same channel:
+
+```bash
+# Terminal 1: Start relay
+bun socket
+
+# Terminal 2: In MCP server log
+[INFO] Joined channel: my-project
+
+# Figma Plugin UI: Join same channel
+Channel: my-project ✓
+```
+
+### Messages not routing
+
+**Cause**: Clients in different channels.
+
+**Solution**: Verify channel names match exactly (case-sensitive):
+
+```bash
+# ✗ Wrong - different channels
+MCP Server: "My-Project"
+Figma Plugin: "my-project"
+
+# ✓ Correct - same channel
+MCP Server: "my-project"
+Figma Plugin: "my-project"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="System Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand the full three-component pipeline
+  </Card>
+  <Card title="Channel Communication" icon="tower-broadcast" href="/concepts/channels">
+    Learn about channel-based isolation
+  </Card>
+</CardGroup>

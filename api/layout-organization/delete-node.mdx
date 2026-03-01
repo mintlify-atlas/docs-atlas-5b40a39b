@@ -1,0 +1,67 @@
+---
+title: delete_node
+description: Delete a node from Figma
+---
+
+Permanently remove a single node from the Figma document. Use this for removing individual elements.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to delete
+</ParamField>
+
+## Response
+
+Returns a confirmation message with the deleted node's ID.
+
+```json
+{
+  "message": "Deleted node with ID: 123:456"
+}
+```
+
+## Examples
+
+### Delete a single element
+
+```typescript
+await delete_node({
+  nodeId: "123:456"
+});
+```
+
+### Delete after checking node type
+
+```typescript
+const nodeInfo = await get_node_info({ nodeId: "123:456" });
+
+if (nodeInfo.type === "TEXT") {
+  await delete_node({ nodeId: "123:456" });
+}
+```
+
+### Conditionally delete nodes
+
+```typescript
+// Get all text nodes
+const textNodes = await scan_text_nodes({ nodeId: "parent-frame-id" });
+
+// Delete empty text nodes
+for (const node of textNodes) {
+  if (node.characters === "") {
+    await delete_node({ nodeId: node.id });
+  }
+}
+```
+
+## Notes
+
+- Deletion is permanent and cannot be undone via the API
+- Deleting a parent node will delete all its children
+- For deleting multiple nodes, use [`delete_multiple_nodes`](/api/layout-organization/delete-multiple-nodes) for better performance
+- Cannot delete the root document node or locked nodes
+
+## See Also
+
+- [`delete_multiple_nodes`](/api/layout-organization/delete-multiple-nodes) - Delete multiple nodes in a single operation

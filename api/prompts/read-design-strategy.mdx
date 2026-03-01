@@ -1,0 +1,234 @@
+---
+title: Read Design Strategy Prompt
+description: Best practices for reading and understanding Figma designs
+---
+
+## Overview
+
+The `read_design_strategy` prompt provides AI agents with guidelines for extracting information from existing Figma designs. It emphasizes starting with user selection and understanding the design structure.
+
+## When to Use
+
+Use this prompt when:
+- Analyzing existing designs
+- Understanding user-selected elements
+- Extracting design specifications
+- Planning modifications to existing layouts
+- Documenting design systems
+
+## Key Principles
+
+### 1. Start with Selection
+
+**Always begin by reading the current selection:**
+
+```typescript
+// First, check what the user has selected
+const selection = await read_my_design();
+```
+
+### 2. Handle Empty Selection
+
+**If no selection exists:**
+
+- Ask the user to select one or more nodes in Figma
+- Provide clear instructions on what to select
+- Explain why selection is needed for the task
+
+```typescript
+const selection = await get_selection();
+
+if (!selection || selection.length === 0) {
+  // Ask user to make a selection
+  return "Please select the elements you want me to analyze in Figma.";
+}
+```
+
+### 3. Understanding Selection Context
+
+**After getting the selection, analyze:**
+
+- Node types (FRAME, TEXT, COMPONENT, INSTANCE, etc.)
+- Hierarchy and parent-child relationships
+- Naming patterns and structure
+- Visual properties (colors, sizes, spacing)
+
+## Reading Tools
+
+### read_my_design()
+
+**Best for:** Getting detailed information about the current selection with full context.
+
+```typescript
+const design = await read_my_design();
+// Returns complete node structure with children
+```
+
+### get_selection()
+
+**Best for:** Getting basic info about selected nodes without deep details.
+
+```typescript
+const selection = await get_selection();
+// Returns array of selected node IDs and names
+```
+
+### get_node_info(nodeId)
+
+**Best for:** Getting detailed information about a specific node by ID.
+
+```typescript
+const nodeInfo = await get_node_info({ nodeId: "123:456" });
+// Returns complete node properties
+```
+
+### get_nodes_info(nodeIds)
+
+**Best for:** Getting information about multiple nodes efficiently.
+
+```typescript
+const nodesInfo = await get_nodes_info({ 
+  nodeIds: ["123:456", "123:457", "123:458"] 
+});
+// Returns array of node properties
+```
+
+## Workflow Examples
+
+### Example 1: Analyzing a Screen Layout
+
+```typescript
+// Step 1: Get selection
+const selection = await read_my_design();
+
+if (!selection || !selection.children) {
+  return "Please select a frame or screen to analyze.";
+}
+
+// Step 2: Understand structure
+const layout = {
+  name: selection.name,
+  type: selection.type,
+  dimensions: {
+    width: selection.absoluteBoundingBox?.width,
+    height: selection.absoluteBoundingBox?.height
+  },
+  children: selection.children.length
+};
+
+// Step 3: Analyze children
+for (const child of selection.children) {
+  console.log(`${child.name}: ${child.type}`);
+}
+```
+
+### Example 2: Reading Text Content
+
+```typescript
+// Step 1: Get selection
+const selection = await read_my_design();
+
+// Step 2: Scan all text nodes
+const textNodes = await scan_text_nodes({ 
+  nodeId: selection.id 
+});
+
+// Step 3: Extract text content
+const textContent = textNodes.map(node => ({
+  id: node.id,
+  name: node.name,
+  text: node.characters
+}));
+```
+
+### Example 3: Understanding Component Usage
+
+```typescript
+// Step 1: Get selection
+const selection = await get_selection();
+
+// Step 2: Scan for component instances
+const instances = await scan_nodes_by_types({
+  nodeId: selection[0].id,
+  types: ["INSTANCE", "COMPONENT"]
+});
+
+// Step 3: Get details for each instance
+for (const instance of instances.matchingNodes) {
+  const details = await get_node_info({ nodeId: instance.id });
+  console.log(`Component: ${details.name}`);
+}
+```
+
+## Best Practices
+
+### Always Check Selection First
+
+```typescript
+const selection = await get_selection();
+
+if (selection.length === 0) {
+  return "No selection. Please select elements in Figma first.";
+}
+
+if (selection.length === 1) {
+  // Single node selected
+  const detail = await read_my_design();
+} else {
+  // Multiple nodes selected
+  const details = await get_nodes_info({ 
+    nodeIds: selection.map(s => s.id) 
+  });
+}
+```
+
+### Use Appropriate Scanning Tools
+
+**For text analysis:**
+```typescript
+const textNodes = await scan_text_nodes({ nodeId });
+```
+
+**For component analysis:**
+```typescript
+const components = await scan_nodes_by_types({ 
+  nodeId, 
+  types: ["COMPONENT", "INSTANCE"] 
+});
+```
+
+**For frame hierarchy:**
+```typescript
+const frames = await scan_nodes_by_types({ 
+  nodeId, 
+  types: ["FRAME"] 
+});
+```
+
+### Handle Large Designs
+
+For designs with many nodes, use chunking:
+
+```typescript
+// Scanning large designs processes in chunks automatically
+const result = await scan_text_nodes({
+  nodeId: largeFrameId,
+  useChunking: true,
+  chunkSize: 10
+});
+
+console.log(`Processed ${result.totalNodes} nodes in ${result.chunks} chunks`);
+```
+
+## Related Prompts
+
+- [Design Strategy](/api/prompts/design-strategy) - For creating new designs
+- [Text Replacement Strategy](/api/prompts/text-replacement-strategy) - For modifying text content
+
+## Related Tools
+
+- [read_my_design](/api/selection/read-my-design)
+- [get_selection](/api/selection/get-selection)
+- [get_node_info](/api/selection/get-node-info)
+- [scan_text_nodes](/api/scanning/scan-text-nodes)
+- [scan_nodes_by_types](/api/scanning/scan-nodes-by-types)

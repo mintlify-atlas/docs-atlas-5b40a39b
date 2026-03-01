@@ -1,0 +1,164 @@
+---
+title: 'get_instance_overrides'
+description: 'Get all override properties from a component instance'
+---
+
+## Overview
+
+Extracts all override properties from a component instance. These overrides can later be applied to other instances using [set_instance_overrides](/api/components-styles/set-instance-overrides), enabling efficient propagation of customizations across multiple instances.
+
+<Info>
+  This is part of the **Instance Override Propagation** workflow contributed by [@dusskapark](https://github.com/dusskapark). See the [demo video](https://youtu.be/uvuT8LByroI).
+</Info>
+
+## Parameters
+
+<ParamField path="nodeId" type="string" optional>
+  ID of the component instance to get overrides from. If not provided, the currently selected instance will be used.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation succeeded
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message describing the result
+</ResponseField>
+
+<ResponseField name="sourceInstanceId" type="string">
+  ID of the instance that overrides were extracted from
+</ResponseField>
+
+<ResponseField name="mainComponentId" type="string">
+  ID of the main component the instance is based on
+</ResponseField>
+
+<ResponseField name="overridesCount" type="number">
+  Number of override properties that were extracted
+</ResponseField>
+
+## Usage Example
+
+```typescript
+// Get overrides from a specific instance
+const result = await get_instance_overrides({
+  nodeId: "123:456"
+});
+
+console.log(result);
+// {
+//   "success": true,
+//   "message": "Successfully copied 5 overrides from instance",
+//   "sourceInstanceId": "123:456",
+//   "mainComponentId": "789:012",
+//   "overridesCount": 5
+// }
+
+// Or use currently selected instance
+const selectedResult = await get_instance_overrides({});
+```
+
+## Instance Override Workflow
+
+<Steps>
+  <Step title="Select or identify source instance">
+    Choose the component instance that has the customizations you want to propagate
+  </Step>
+  
+  <Step title="Extract overrides">
+    Call `get_instance_overrides` to capture all override properties from the source
+  </Step>
+  
+  <Step title="Identify target instances">
+    Get the node IDs of instances you want to apply the overrides to
+  </Step>
+  
+  <Step title="Apply overrides">
+    Use [set_instance_overrides](/api/components-styles/set-instance-overrides) to propagate the customizations
+  </Step>
+</Steps>
+
+## What Gets Captured
+
+The tool captures all override properties including:
+
+- Text content overrides
+- Visibility toggles for nested layers
+- Component swap overrides
+- Fill and stroke color overrides
+- Any other property that can be overridden in a component instance
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Design System Updates" icon="arrows-rotate">
+    Apply consistent customizations across multiple component instances
+  </Card>
+  
+  <Card title="Template Duplication" icon="clone">
+    Replicate a customized instance's settings to create variations
+  </Card>
+  
+  <Card title="Bulk Modifications" icon="layer-group">
+    Make the same changes to multiple instances without manual repetition
+  </Card>
+  
+  <Card title="State Management" icon="toggle-on">
+    Copy state configurations (like button states) between instances
+  </Card>
+</CardGroup>
+
+## Example: Propagating Button Styles
+
+```typescript
+// Step 1: Get overrides from a customized button instance
+const sourceOverrides = await get_instance_overrides({
+  nodeId: "source-button-id"
+});
+
+if (sourceOverrides.success) {
+  console.log(`Captured ${sourceOverrides.overridesCount} overrides`);
+  
+  // Step 2: Apply to multiple target buttons
+  const targetButtons = ["button-1", "button-2", "button-3"];
+  
+  const applyResult = await set_instance_overrides({
+    sourceInstanceId: sourceOverrides.sourceInstanceId,
+    targetNodeIds: targetButtons
+  });
+  
+  console.log(`Applied overrides to ${applyResult.results.length} buttons`);
+}
+```
+
+## Notes
+
+<Note>
+  - Overrides are stored temporarily in the plugin's memory until applied
+  - Only works with component instances (not main components)
+  - The source instance must have at least one override property
+  - Overrides are extracted from the current state of the instance
+</Note>
+
+## Error Handling
+
+```typescript
+const result = await get_instance_overrides({ nodeId: "123:456" });
+
+if (!result.success) {
+  console.error(result.message);
+  // Possible errors:
+  // - "No instance selected"
+  // - "Selected node is not a component instance"
+  // - "Instance has no overrides to copy"
+}
+```
+
+## Related Tools
+
+- [set_instance_overrides](/api/components-styles/set-instance-overrides) - Apply extracted overrides to target instances
+- [create_component_instance](/api/components-styles/create-component-instance) - Create new component instances
+- [get_local_components](/api/components-styles/get-local-components) - Get available components
+- [get_node_info](/api/document-selection/get-node-info) - Get detailed node information

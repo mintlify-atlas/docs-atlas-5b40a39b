@@ -1,0 +1,527 @@
+---
+title: 'Local Development Setup'
+description: 'Setting up Talk to Figma MCP for local development and contribution'
+---
+
+This guide covers setting up Talk to Figma MCP for local development, allowing you to modify the source code, test changes, and contribute to the project.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- [Bun](https://bun.sh) runtime installed
+- [Git](https://git-scm.com/) installed
+- A code editor (VS Code, Cursor, or similar)
+- Node.js knowledge (TypeScript)
+- Figma account with editor access
+
+## Initial Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+    cd talk-to-figma-mcp
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    bun install
+    ```
+    
+    This installs all required packages:
+    - `@modelcontextprotocol/sdk` - MCP protocol implementation
+    - `ws` - WebSocket client
+    - `uuid` - Unique ID generation
+    - `zod` - Schema validation
+    - TypeScript and build tools
+  </Step>
+
+  <Step title="Review project structure">
+    ```
+    talk-to-figma-mcp/
+    ├── src/
+    │   ├── talk_to_figma_mcp/
+    │   │   ├── server.ts          # Main MCP server
+    │   │   └── package.json        # Server package config
+    │   ├── cursor_mcp_plugin/
+    │   │   ├── code.js             # Figma plugin main thread
+    │   │   ├── ui.html             # Plugin UI
+    │   │   └── manifest.json       # Plugin metadata
+    │   └── socket.ts               # WebSocket relay server
+    ├── scripts/
+    │   └── setup.sh                # Automated setup script
+    ├── package.json                # Root package config
+    └── tsup.config.ts              # Build configuration
+    ```
+  </Step>
+</Steps>
+
+## Development Configuration
+
+For local development, you need to point the MCP configuration to your local source files instead of the published package.
+
+### Cursor Configuration
+
+Create or edit `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bun",
+      "args": ["/absolute/path/to/talk-to-figma-mcp/src/talk_to_figma_mcp/server.ts"]
+    }
+  }
+}
+```
+
+<Warning>
+  Use the **absolute path** to your local `server.ts` file, not a relative path.
+</Warning>
+
+### Claude Code Configuration
+
+Create or edit `.mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bun",
+      "args": ["/absolute/path/to/talk-to-figma-mcp/src/talk_to_figma_mcp/server.ts"]
+    }
+  }
+}
+```
+
+### Finding your absolute path
+
+<CodeGroup>
+
+```bash macOS/Linux
+cd /path/to/talk-to-figma-mcp
+pwd
+# Copy the output and append /src/talk_to_figma_mcp/server.ts
+```
+
+```powershell Windows
+cd C:\path\to\talk-to-figma-mcp
+pwd
+# Use forward slashes in the JSON config
+```
+
+</CodeGroup>
+
+Example absolute paths:
+- macOS/Linux: `/home/username/projects/talk-to-figma-mcp/src/talk_to_figma_mcp/server.ts`
+- Windows: `C:/Users/username/projects/talk-to-figma-mcp/src/talk_to_figma_mcp/server.ts`
+
+## Development Workflow
+
+### Running the WebSocket Server
+
+The WebSocket relay server requires no build step:
+
+```bash
+bun socket
+```
+
+For development with auto-reload, use:
+
+```bash
+bun --watch src/socket.ts
+```
+
+### Building the MCP Server
+
+The MCP server is written in TypeScript and needs to be built:
+
+<CodeGroup>
+
+```bash One-time build
+bun run build
+```
+
+```bash Watch mode (recommended)
+bun run dev
+```
+
+```bash Manual watch
+bun run build:watch
+```
+
+</CodeGroup>
+
+Watch mode automatically rebuilds when you save changes to TypeScript files.
+
+### Running the MCP Server
+
+After building:
+
+```bash
+bun run start
+```
+
+For testing, you can run the server directly:
+
+```bash
+bun src/talk_to_figma_mcp/server.ts
+```
+
+### Figma Plugin Development
+
+The Figma plugin requires no build step - it uses vanilla JavaScript:
+
+<Steps>
+  <Step title="Link the plugin">
+    In Figma Desktop:
+    1. Go to Plugins → Development → New Plugin
+    2. Choose "Link existing plugin"
+    3. Select `src/cursor_mcp_plugin/manifest.json`
+  </Step>
+
+  <Step title="Make changes">
+    Edit `code.js` or `ui.html` in `src/cursor_mcp_plugin/`
+  </Step>
+
+  <Step title="Reload">
+    Close and reopen the plugin in Figma to see your changes.
+  </Step>
+</Steps>
+
+<Info>
+  The plugin files are loaded directly by Figma - no transpilation or bundling needed.
+</Info>
+
+## Development Commands
+
+All available commands from `package.json`:
+
+```json
+{
+  "scripts": {
+    "start": "bun run dist/server.js",
+    "socket": "bun run src/socket.ts",
+    "setup": "./scripts/setup.sh",
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "dev": "bun run build:watch",
+    "pub:release": "bun run build && npm publish"
+  }
+}
+```
+
+## Testing Your Changes
+
+<Steps>
+  <Step title="Start the WebSocket server">
+    ```bash
+    bun socket
+    ```
+  </Step>
+
+  <Step title="Build and run the MCP server (in watch mode)">
+    ```bash
+    bun run dev
+    ```
+    
+    In a separate terminal:
+    ```bash
+    bun run start
+    ```
+  </Step>
+
+  <Step title="Run the Figma plugin">
+    In Figma: Plugins → Development → Cursor MCP Plugin
+  </Step>
+
+  <Step title="Test via Cursor or Claude Code">
+    Use your AI agent to send commands and verify the behavior.
+  </Step>
+</Steps>
+
+## Architecture Deep Dive
+
+### MCP Server (`src/talk_to_figma_mcp/server.ts`)
+
+The MCP server:
+- Implements the Model Context Protocol
+- Exposes 50+ tools for Figma manipulation
+- Manages WebSocket communication
+- Handles request/response correlation with UUIDs
+- Implements 30-second timeouts with progress resets
+- Validates all parameters with Zod schemas
+
+Key patterns:
+```typescript
+// Request tracking
+const pendingRequests = new Map<string, {
+  resolve: (value: any) => void;
+  reject: (error: any) => void;
+  timeoutId: NodeJS.Timeout;
+  lastActivity: number;
+}>();
+
+// Logging (stderr only, stdout is for MCP protocol)
+console.error('[MCP] Starting server...');
+
+// Color conversion (Figma uses 0-1, display uses hex)
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+```
+
+### WebSocket Relay (`src/socket.ts`)
+
+The WebSocket relay:
+- Lightweight Bun WebSocket server
+- Channel-based message routing
+- Runs on port 3055 (configurable via `PORT` env)
+- Handles connection management
+- CORS-enabled for browser plugin
+
+Key features:
+```typescript
+// Channel isolation
+const channels = new Map<string, Set<ServerWebSocket<any>>>();
+
+// Configurable binding
+const server = Bun.serve({
+  port: 3055,
+  hostname: "0.0.0.0", // For Windows WSL
+  // ...
+});
+```
+
+### Figma Plugin (`src/cursor_mcp_plugin/`)
+
+The plugin:
+- Vanilla JavaScript (no build process)
+- Command dispatcher for 30+ operations
+- Chunking for large operations (prevents UI freezing)
+- WebSocket client for MCP communication
+- Progress reporting for long-running tasks
+
+Key components:
+```javascript
+// Command dispatcher
+const commandHandlers = {
+  get_document_info: async () => { /* ... */ },
+  create_rectangle: async (params) => { /* ... */ },
+  // 30+ more handlers
+};
+
+// Chunking pattern
+for (let i = 0; i < nodes.length; i += chunkSize) {
+  const chunk = nodes.slice(i, i + chunkSize);
+  // Process chunk
+  sendProgress(i, total);
+}
+```
+
+## Common Development Tasks
+
+### Adding a new MCP tool
+
+<Steps>
+  <Step title="Define the tool schema">
+    In `server.ts`, add a new tool definition:
+    
+    ```typescript
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [
+        // ... existing tools
+        {
+          name: "my_new_tool",
+          description: "Description of what it does",
+          inputSchema: {
+            type: "object",
+            properties: {
+              param1: {
+                type: "string",
+                description: "First parameter"
+              }
+            },
+            required: ["param1"]
+          }
+        }
+      ]
+    }));
+    ```
+  </Step>
+
+  <Step title="Implement the tool handler">
+    Add the handler in the CallToolRequestSchema handler:
+    
+    ```typescript
+    case "my_new_tool": {
+      const params = request.params.arguments;
+      // Send command to plugin
+      const result = await sendCommandToPlugin({
+        command: "my_new_tool",
+        params: params
+      });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    }
+    ```
+  </Step>
+
+  <Step title="Add plugin handler">
+    In `code.js`, add the command handler:
+    
+    ```javascript
+    async function handleMyNewTool(params) {
+      // Implement Figma API operations
+      const node = figma.getNodeById(params.nodeId);
+      // ...
+      return { success: true, result: data };
+    }
+    ```
+  </Step>
+
+  <Step title="Test the new tool">
+    Rebuild, restart, and test via your AI agent.
+  </Step>
+</Steps>
+
+### Modifying WebSocket communication
+
+The WebSocket protocol uses this message format:
+
+```typescript
+{
+  type: "join" | "message",
+  channel: string,
+  message?: {
+    command: string,
+    params: any
+  },
+  id?: string
+}
+```
+
+Modifications should maintain backward compatibility with this structure.
+
+### Debugging
+
+<CodeGroup>
+
+```typescript MCP Server
+// All logs must go to stderr
+console.error('[DEBUG] Variable value:', value);
+
+// Never log to stdout (breaks MCP protocol)
+// console.log('...') // DON'T DO THIS
+```
+
+```typescript WebSocket Server
+// Logs go to stdout (not part of protocol)
+console.log(`Client joined channel "${channelName}"`);
+```
+
+```javascript Figma Plugin
+// Use Figma's console (appears in developer tools)
+console.log('Plugin debug:', data);
+
+// Or send to UI for display
+figma.ui.postMessage({ type: 'debug', data: value });
+```
+
+</CodeGroup>
+
+## Build Configuration
+
+The project uses `tsup` for building. Configuration in `tsup.config.ts`:
+
+```typescript
+import { defineConfig } from 'tsup'
+
+export default defineConfig({
+  entry: ['src/talk_to_figma_mcp/server.ts'],
+  format: ['esm'],
+  dts: false,
+  shims: true,
+  outDir: 'dist',
+  clean: true,
+})
+```
+
+This:
+- Compiles TypeScript to JavaScript
+- Outputs to `dist/` directory
+- Uses ES modules format
+- Cleans output directory on each build
+
+## Contributing Guidelines
+
+When contributing:
+
+1. **Code Style**: Follow existing patterns
+2. **Logging**: Use stderr for MCP server logs
+3. **Error Handling**: All errors should return structured responses
+4. **Validation**: Use Zod for parameter validation
+5. **Documentation**: Update relevant docs for new features
+6. **Testing**: Test with both Cursor and Claude Code
+7. **Chunking**: Use chunking for operations on 100+ nodes
+
+## Publishing Changes
+
+For maintainers:
+
+<Steps>
+  <Step title="Update version">
+    Edit `package.json` and bump the version number.
+  </Step>
+
+  <Step title="Build and publish">
+    ```bash
+    bun run pub:release
+    ```
+    
+    This builds the project and publishes to npm.
+  </Step>
+
+  <Step title="Update Figma plugin">
+    If plugin changes are made, update the plugin on Figma Community separately.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/introduction/architecture">
+    Understand the system architecture
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/tools">
+    Explore all available MCP tools
+  </Card>
+</CardGroup>
+
+## Troubleshooting Development Issues
+
+### Build errors
+
+- Ensure all dependencies are installed: `bun install`
+- Clear the build cache: `rm -rf dist && bun run build`
+- Check TypeScript version compatibility
+
+### MCP server not reloading
+
+- You must restart your AI agent after making MCP server changes
+- Verify the absolute path in your MCP configuration is correct
+- Check stderr logs for error messages
+
+### Plugin changes not appearing
+
+- Close and reopen the plugin in Figma
+- For major changes, try unlinking and relinking the plugin
+- Check the Figma plugin console for JavaScript errors
+
+### WebSocket connection issues
+
+- Ensure the WebSocket server is running
+- Check port 3055 isn't in use by another process
+- On Windows, verify `hostname: "0.0.0.0"` is set

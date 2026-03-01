@@ -1,0 +1,251 @@
+---
+title: create_text
+description: Create a new text element in Figma
+---
+
+## Overview
+
+Create a new text element in Figma with specified position, content, and optional styling properties.
+
+## Parameters
+
+### Position & Content
+
+<ParamField path="x" type="number" required>
+  X position of the text element
+</ParamField>
+
+<ParamField path="y" type="number" required>
+  Y position of the text element
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Text content to display
+</ParamField>
+
+### Styling Properties
+
+<ParamField path="fontSize" type="number">
+  Font size in pixels. Defaults to 14 if not provided.
+</ParamField>
+
+<ParamField path="fontWeight" type="number">
+  Font weight (e.g., 400 for Regular, 700 for Bold). Defaults to 400 if not provided.
+  
+  Common values:
+  - 100: Thin
+  - 200: Extra Light
+  - 300: Light
+  - 400: Regular/Normal
+  - 500: Medium
+  - 600: Semi Bold
+  - 700: Bold
+  - 800: Extra Bold
+  - 900: Black
+</ParamField>
+
+<ParamField path="fontColor" type="object">
+  Font color in RGBA format. Defaults to black `{r: 0, g: 0, b: 0, a: 1}` if not provided.
+  
+  Properties:
+  - `r` (number, 0-1): Red component
+  - `g` (number, 0-1): Green component
+  - `b` (number, 0-1): Blue component
+  - `a` (number, 0-1, optional): Alpha/opacity component
+</ParamField>
+
+### Other Properties
+
+<ParamField path="name" type="string">
+  Semantic layer name for the text node. Defaults to "Text" if not provided.
+</ParamField>
+
+<ParamField path="parentId" type="string">
+  Optional parent node ID to append the text to. If not provided, the text is created in the current selection or page.
+</ParamField>
+
+## Return Type
+
+Returns an object with:
+- `name` (string): The name of the created text element
+- `id` (string): The unique ID of the created text element
+
+## Usage Examples
+
+### Basic Text
+
+Create simple text with default styling:
+
+```typescript
+await mcp.callTool("create_text", {
+  x: 100,
+  y: 100,
+  text: "Hello, World!"
+});
+```
+
+### Heading Text
+
+Create a large, bold heading:
+
+```typescript
+await mcp.callTool("create_text", {
+  x: 50,
+  y: 50,
+  text: "Welcome Back",
+  fontSize: 32,
+  fontWeight: 700,
+  name: "Page Heading"
+});
+```
+
+### Colored Text
+
+Create text with a custom color:
+
+```typescript
+await mcp.callTool("create_text", {
+  x: 100,
+  y: 200,
+  text: "This is a blue link",
+  fontSize: 16,
+  fontWeight: 500,
+  fontColor: {
+    r: 0,
+    g: 0.5,
+    b: 1,
+    a: 1
+  },
+  name: "Link Text"
+});
+```
+
+### Text Inside a Frame
+
+Create text as a child of an existing frame:
+
+```typescript
+// Create a button frame
+const button = await mcp.callTool("create_frame", {
+  x: 100,
+  y: 300,
+  width: 120,
+  height: 40,
+  name: "Button",
+  fillColor: { r: 0.2, g: 0.4, b: 1, a: 1 },
+  layoutMode: "HORIZONTAL",
+  primaryAxisAlignItems: "CENTER",
+  counterAxisAlignItems: "CENTER"
+});
+
+// Add text inside the button
+await mcp.callTool("create_text", {
+  x: 0,
+  y: 0,
+  text: "Sign In",
+  fontSize: 16,
+  fontWeight: 600,
+  fontColor: { r: 1, g: 1, b: 1, a: 1 },
+  name: "Button Label",
+  parentId: button.id
+});
+```
+
+### Form Label
+
+Create a label for an input field:
+
+```typescript
+await mcp.callTool("create_text", {
+  x: 20,
+  y: 150,
+  text: "Email Address",
+  fontSize: 14,
+  fontWeight: 500,
+  fontColor: { r: 0.3, g: 0.3, b: 0.3, a: 1 },
+  name: "Email Label"
+});
+```
+
+### Semi-Transparent Helper Text
+
+Create helper text with reduced opacity:
+
+```typescript
+await mcp.callTool("create_text", {
+  x: 20,
+  y: 250,
+  text: "Forgot your password?",
+  fontSize: 12,
+  fontWeight: 400,
+  fontColor: {
+    r: 0.4,
+    g: 0.4,
+    b: 0.4,
+    a: 0.7
+  },
+  name: "Helper Link"
+});
+```
+
+### Multi-Element Text Layout
+
+Create a complete text hierarchy:
+
+```typescript
+// Create container frame
+const container = await mcp.callTool("create_frame", {
+  x: 50,
+  y: 50,
+  width: 400,
+  height: 300,
+  name: "Text Container",
+  layoutMode: "VERTICAL",
+  itemSpacing: 12,
+  paddingTop: 24,
+  paddingLeft: 24
+});
+
+// Title
+await mcp.callTool("create_text", {
+  x: 0,
+  y: 0,
+  text: "Article Title",
+  fontSize: 28,
+  fontWeight: 700,
+  parentId: container.id,
+  name: "Title"
+});
+
+// Subtitle
+await mcp.callTool("create_text", {
+  x: 0,
+  y: 0,
+  text: "A brief description of the article",
+  fontSize: 16,
+  fontWeight: 400,
+  fontColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
+  parentId: container.id,
+  name: "Subtitle"
+});
+
+// Body text
+await mcp.callTool("create_text", {
+  x: 0,
+  y: 0,
+  text: "This is the main body content of the article...",
+  fontSize: 14,
+  fontWeight: 400,
+  parentId: container.id,
+  name: "Body"
+});
+```
+
+## Notes
+
+- Text content can be modified later using the `set_text_content` tool
+- Font color uses RGBA format with values between 0 and 1 (not 0-255)
+- The text element auto-sizes to fit the content by default
+- When placed inside an auto-layout frame, the text will respect the frame's alignment settings
+- Position coordinates are relative to the parent container if `parentId` is specified
+- Use the returned `id` to modify the text later with tools like `set_text_content` or `set_fill_color`

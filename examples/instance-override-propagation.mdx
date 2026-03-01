@@ -1,0 +1,167 @@
+---
+title: 'Instance override propagation'
+description: 'Propagate component instance overrides from a source instance to multiple target instances with a single command.'
+keywords: ['component instances', 'overrides', 'propagation', 'design system']
+icon: 'clone'
+---
+
+## Overview
+
+Instance override propagation allows you to copy customizations from one component instance to multiple other instances in a single operation. This feature dramatically reduces repetitive design work when working with component instances that need similar customizations.
+
+<Note>
+This feature was contributed by [@dusskapark](https://github.com/dusskapark). Watch the [demo video](https://youtu.be/uvuT8LByroI) to see it in action.
+</Note>
+
+## Use cases
+
+- **Design system updates**: Apply approved customizations across multiple instances
+- **A/B testing**: Create multiple variants with consistent overrides
+- **Rapid prototyping**: Quickly propagate changes across similar components
+- **Component evolution**: Test override patterns before updating the main component
+- **Consistency enforcement**: Ensure similar instances share the same customizations
+
+## How it works
+
+The override propagation workflow extracts override properties from a source instance and applies them to one or more target instances. This includes text overrides, visibility toggles, and nested instance swaps.
+
+## Workflow
+
+<Steps>
+  <Step title="Select source instance">
+    Select the component instance that has the overrides you want to copy. Use `get_selection` to confirm you have the right instance selected.
+
+    ```javascript
+    get_selection()
+    ```
+
+    The result will show the selected instance and its current overrides.
+  </Step>
+
+  <Step title="Extract overrides">
+    Use `get_instance_overrides` to extract all override properties from the selected source instance.
+
+    ```javascript
+    get_instance_overrides({
+      sourceInstanceId: "123:456"
+    })
+    ```
+
+    This returns a structured map of all overrides including:
+    - Text content overrides
+    - Visibility states
+    - Fill/stroke color overrides
+    - Nested instance swaps
+  </Step>
+
+  <Step title="Identify target instances">
+    Determine which instances should receive the overrides. You can use `get_local_components` to find all instances of a component.
+
+    ```javascript
+    const targetIds = ["123:789", "123:790", "123:791"];
+    ```
+  </Step>
+
+  <Step title="Apply overrides">
+    Use `set_instance_overrides` to propagate the extracted overrides to all target instances.
+
+    ```javascript
+    set_instance_overrides({
+      targetInstanceIds: targetIds,
+      overrides: extractedOverrides
+    })
+    ```
+
+    The overrides are applied in a single batch operation with progress updates.
+  </Step>
+
+  <Step title="Verify propagation">
+    Check the target instances to ensure overrides were applied correctly.
+
+    ```javascript
+    get_nodes_info({
+      nodeIds: targetIds
+    })
+    ```
+  </Step>
+</Steps>
+
+## Supported override types
+
+<AccordionGroup>
+  <Accordion title="Text overrides">
+    Text content changes in component instances are captured and can be propagated to target instances. The override map includes the property path and new text value.
+  </Accordion>
+
+  <Accordion title="Visibility overrides">
+    Show/hide states for layers within component instances can be copied to other instances, useful for toggling optional elements.
+  </Accordion>
+
+  <Accordion title="Instance swaps">
+    Nested component instances that have been swapped to different variants or components are captured and can be replicated.
+  </Accordion>
+
+  <Accordion title="Fill and stroke overrides">
+    Color overrides applied to instance children are extracted and can be propagated, though nested style properties may have limitations.
+  </Accordion>
+</AccordionGroup>
+
+## Best practices
+
+<Tip>
+Always extract overrides from a carefully configured source instance. Review the override data before applying to ensure you're propagating the correct customizations.
+</Tip>
+
+- **Verify compatibility**: Ensure target instances are from the same main component or compatible component variants
+- **Test first**: Apply overrides to a single test instance before propagating to many targets
+- **Document patterns**: Keep track of common override patterns for your design system
+- **Incremental approach**: For complex components, propagate overrides in stages rather than all at once
+- **Version control**: Consider documenting override patterns in your design system guidelines
+
+## Tool sequence
+
+1. `join_channel` - Connect to Figma
+2. `get_selection` - Confirm source instance
+3. `get_instance_overrides` - Extract override data from source
+4. `get_local_components` - Find target instances (optional)
+5. `set_instance_overrides` - Apply overrides to targets
+6. `get_nodes_info` - Verify the propagation
+
+## Example scenario
+
+Imagine you have a card component with 50 instances across your design. You customize one instance with:
+- Updated heading text
+- Hidden badge element
+- Swapped icon variant
+- Changed button color
+
+Instead of manually replicating these 4 changes across 49 other instances (196 manual operations), you:
+1. Extract overrides from the customized instance
+2. Apply them to all 49 targets in a single operation
+
+This reduces hours of work to seconds.
+
+## Demo video
+
+Watch [@dusskapark](https://github.com/dusskapark)'s demonstration of instance override propagation:
+
+<iframe
+  width="560"
+  height="315"
+  src="https://www.youtube.com/embed/uvuT8LByroI"
+  title="Instance override propagation demo"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen
+></iframe>
+
+## Related tools
+
+- [`get_instance_overrides`](/api-reference/tools/get-instance-overrides) - Extract override properties from a component instance
+- [`set_instance_overrides`](/api-reference/tools/set-instance-overrides) - Apply overrides to target instances
+- [`get_local_components`](/api-reference/tools/get-local-components) - Get information about local components
+- [`create_component_instance`](/api-reference/tools/create-component-instance) - Create new component instances
+
+## Related prompts
+
+- [`swap_overrides_instances`](/api-reference/prompts/swap-overrides-instances) - Strategy for transferring overrides between component instances

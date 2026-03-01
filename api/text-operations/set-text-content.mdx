@@ -1,0 +1,142 @@
+---
+title: set_text_content
+description: Set the text content of an existing text node in Figma
+---
+
+## Overview
+
+The `set_text_content` tool updates the text content of a single text node in Figma. This is useful for making targeted text changes to individual elements.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the text node to modify
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  New text content to set for the node
+</ParamField>
+
+## Response
+
+Returns a success message containing:
+- The name of the updated node
+- The new text content
+
+## Example
+
+```typescript
+const result = await set_text_content({
+  nodeId: "123:456",
+  text: "Updated heading text"
+});
+
+// Output: "Updated text content of node \"Main Heading\" to \"Updated heading text\""
+```
+
+## Use Cases
+
+### Update Button Text
+Change the label on a button after getting user feedback.
+
+```typescript
+await set_text_content({
+  nodeId: "button-text-id",
+  text: "Get Started Free"
+});
+```
+
+### Fix Typos
+Correct spelling errors in existing text nodes.
+
+```typescript
+await set_text_content({
+  nodeId: "description-id",
+  text: "Receive notifications about your account"
+});
+```
+
+### Dynamic Content Updates
+Update placeholder text with real data.
+
+```typescript
+const username = "Alice";
+await set_text_content({
+  nodeId: "greeting-id",
+  text: `Welcome back, ${username}!`
+});
+```
+
+## Important Notes
+
+### Text Node Type
+- Only works on TEXT nodes in Figma
+- Will fail if the specified node is not a text node
+- Preserves all existing text styling (font, size, color, etc.)
+
+### Font Loading
+- Figma must have the current font loaded
+- If the font is not available, the operation may fail
+- The plugin automatically attempts to load the font before updating
+
+### Text Overflow
+- New text may overflow the text box boundaries
+- Figma's auto-layout will adjust if the text node is in an auto-layout frame
+- Fixed-size text boxes may clip text that's too long
+
+## Error Handling
+
+Common errors you might encounter:
+
+```typescript
+// Node not found
+"Error setting text content: Node with ID 123:456 not found"
+
+// Not a text node
+"Error setting text content: Node is not a text node"
+
+// Font loading issue
+"Error setting text content: Failed to load font"
+```
+
+## Performance
+
+- **Single Update**: Near-instantaneous for individual text changes
+- **Multiple Updates**: For updating many nodes, use [set_multiple_text_contents](/api/text-operations/set-multiple-text-contents) instead
+- **No Progress Tracking**: This tool completes immediately without progress updates
+
+## Best Practices
+
+1. **Verify Node Type**: Use `get_node_info` first to confirm the node is a text node
+2. **Batch Operations**: For multiple updates, use `set_multiple_text_contents` for better performance
+3. **Preserve Formatting**: The tool maintains existing character-level formatting within the text
+4. **Check Text Length**: Consider the text box size before setting long text strings
+
+## Workflow Example
+
+```typescript
+// 1. Scan text nodes to find targets
+const textNodes = await scan_text_nodes({ nodeId: "frame-id" });
+
+// 2. Find specific text node
+const titleNode = textNodes.textNodes.find(n => n.name === "Page Title");
+
+// 3. Update the text
+if (titleNode) {
+  await set_text_content({
+    nodeId: titleNode.id,
+    text: "New Page Title"
+  });
+}
+
+// 4. Verify the change
+const updated = await get_node_info({ nodeId: titleNode.id });
+console.log(updated.characters); // "New Page Title"
+```
+
+## Related Tools
+
+- [scan_text_nodes](/api/text-operations/scan-text-nodes) - Find text nodes to update
+- [set_multiple_text_contents](/api/text-operations/set-multiple-text-contents) - Update multiple text nodes at once
+- [create_text](/api/creation/create-text) - Create new text nodes
+- [get_node_info](/api/node-info/get-node-info) - Get information about a text node

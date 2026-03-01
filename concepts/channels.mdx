@@ -1,0 +1,431 @@
+---
+title: 'Channel-Based Communication'
+description: 'How channel isolation enables multi-user collaboration without message conflicts'
+icon: 'tower-broadcast'
+---
+
+## Overview
+
+Channels provide **message isolation** in Talk to Figma MCP, allowing multiple users to run MCP servers and Figma plugins simultaneously on the same machine without interfering with each other.
+
+## Why Channels?
+
+Without channels, all messages would be broadcast to all connected clients, causing:
+
+- **Message confusion**: Commands intended for one Figma instance reach another
+- **Response conflicts**: Responses from one plugin resolve promises in another server
+- **Security issues**: Users could see or interfere with each other's work
+
+<Check>
+  Channels solve this by creating **isolated communication rooms** where only clients in the same channel can exchange messages.
+</Check>
+
+## Channel Lifecycle
+
+### 1. Joining a Channel
+
+Before sending any commands, clients must join a channel:
+
+```typescript
+// MCP Server joins a channel
+await joinChannel("my-project");
+```
+
+The relay creates the channel if it doesn't exist:
+
+```typescript socket.ts
+if (data.type === "join") {
+  const channelName = data.channel;
+  
+  // Create channel if it doesn't exist
+  if (!channels.has(channelName)) {
+    channels.set(channelName, new Set());
+  }
+  
+  // Add client to channel
+  const channelClients = channels.get(channelName)!;
+  channelClients.add(ws);
+  
+  console.log(`✓ Client joined channel "${channelName}" (${channelClients.size} total clients)`);
+  
+  // Notify client of successful join
+  ws.send(JSON.stringify({
+    type: "system",
+    message: `Joined channel: ${channelName}`,
+    channel: channelName
+  }));
+}
+```
+
+### 2. Channel Storage
+
+The relay maintains a Map of channels to client sets:
+
+```typescript socket.ts
+// Store clients by channel
+const channels = new Map<string, Set<ServerWebSocket<any>>>();
+
+// Example state after clients join:
+// channels = {
+//   "my-project": Set { ws1, ws2 },
+//   "design-team": Set { ws3, ws4, ws5 },
+//   "prototype": Set { ws6 }
+// }
+```
+
+### 3. Sending Messages
+
+Once in a channel, clients can send messages that are **broadcast only within that channel**:
+
+```typescript socket.ts
+if (data.type === "message") {
+  const channelName = data.channel;
+  const channelClients = channels.get(channelName);
+  
+  if (!channelClients || !channelClients.has(ws)) {
+    ws.send(JSON.stringify({
+      type: "error",
+      message: "You must join the channel first"
+    }));
+    return;
+  }
+  
+  // Broadcast to all OTHER clients in the channel (not the sender)
+  let broadcastCount = 0;
+  channelClients.forEach((client) => {
+    if (client !== ws && client.readyState === WebSocket.OPEN) {
+      broadcastCount++;
+      client.send(JSON.stringify({
+        type: "broadcast",
+        message: data.message,
+        sender: "peer",
+        channel: channelName
+      }));
+    }
+  });
+  
+  console.log(`✓ Broadcast to ${broadcastCount} peer(s) in channel "${channelName}"`);
+}
+```
+
+<Warning>
+  Messages are **not echoed back** to the sender. This prevents request-response loops and ensures clean message flow.
+</Warning>
+
+### 4. Leaving a Channel
+
+When a client disconnects, they're automatically removed from all channels:
+
+```typescript socket.ts
+ws.close = () => {
+  console.log("Client disconnected");
+  
+  // Remove client from their channel
+  channels.forEach((clients, channelName) => {
+    if (clients.has(ws)) {
+      clients.delete(ws);
+      
+      // Notify other clients in the channel
+      clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: "system",
+            message: "A user has left the channel",
+            channel: channelName
+          }));
+        }
+      });
+    }
+  });
+};
+```
+
+## MCP Server Channel Integration
+
+The MCP server tracks its current channel and requires joining before sending commands:
+
+```typescript server.ts
+// Track current channel
+let currentChannel: string | null = null;
+
+// Function to join a channel
+async function joinChannel(channelName: string): Promise<void> {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    throw new Error("Not connected to Figma");
+  }
+  
+  await sendCommandToFigma("join", { channel: channelName });
+  currentChannel = channelName;
+  logger.info(`Joined channel: ${channelName}`);
+}
+
+// Validate channel before sending commands
+function sendCommandToFigma(
+  command: FigmaCommand,
+  params: unknown = {}
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    // Check if we need a channel for this command
+    const requiresChannel = command !== "join";
+    if (requiresChannel && !currentChannel) {
+      reject(new Error("Must join a channel before sending commands"));
+      return;
+    }
+    
+    const request = {
+      id: uuidv4(),
+      type: command === "join" ? "join" : "message",
+      channel: command === "join" ? params.channel : currentChannel,
+      message: { /* ... */ }
+    };
+    
+    ws.send(JSON.stringify(request));
+  });
+}
+```
+
+## Channel Naming Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Project-Based" icon="folder">
+    Use project names for isolation
+    ```
+    my-app-design
+    website-redesign
+    mobile-prototype
+    ```
+  </Card>
+  
+  <Card title="Team-Based" icon="users">
+    Use team identifiers
+    ```
+    design-team
+    frontend-dev
+    qa-testing
+    ```
+  </Card>
+  
+  <Card title="Feature-Based" icon="code-branch">
+    Use feature branches
+    ```
+    feature-login
+    feature-dashboard
+    feature-checkout
+    ```
+  </Card>
+  
+  <Card title="User-Based" icon="user">
+    Use usernames for personal work
+    ```
+    alice-workspace
+    bob-experiments
+    charlie-prototypes
+    ```
+  </Card>
+</CardGroup>
+
+<Tip>
+  Choose channel names that are **descriptive** and **unique** within your team to avoid accidental conflicts.
+</Tip>
+
+## Multi-Client Scenarios
+
+### Scenario 1: Single User, Multiple Devices
+
+A user working on the same project from different locations:
+
+```
+Channel: "my-project"
+├─ MCP Server (Laptop) ──┐
+├─ Figma Plugin (Laptop) ┘
+└─ Figma Plugin (Desktop) (inactive)
+```
+
+Only the active Figma plugin responds to commands.
+
+### Scenario 2: Team Collaboration
+
+Multiple users on different projects:
+
+```
+Channel: "login-redesign"
+├─ Alice's MCP Server ──┐
+└─ Alice's Figma Plugin ┘
+
+Channel: "dashboard-v2"
+├─ Bob's MCP Server ──┐
+└─ Bob's Figma Plugin ┘
+```
+
+Messages never cross between channels.
+
+### Scenario 3: Paired Development
+
+Two developers working on the same design:
+
+```
+Channel: "prototype"
+├─ Dev 1's MCP Server ──┐
+├─ Dev 2's MCP Server ──┤
+└─ Shared Figma Plugin ─┘
+```
+
+Both servers can send commands to the same plugin.
+
+<Warning>
+  Be cautious with multiple servers in one channel — they can issue conflicting commands to the same Figma instance.
+</Warning>
+
+## Channel Security
+
+### Current Model
+
+Channels provide **isolation**, not authentication:
+
+- Anyone who knows a channel name can join it
+- No password or token required
+- Suitable for **localhost-only** deployments
+
+<Note>
+  The relay is designed for **local development**, not production use. All WebSocket connections are unauthenticated.
+</Note>
+
+### Future Enhancements
+
+Potential security improvements:
+
+- **Channel tokens**: Require secret tokens to join channels
+- **User authentication**: Integrate with identity providers
+- **Access control**: Role-based permissions per channel
+- **Audit logging**: Track all channel activity
+
+## Using the join_channel Tool
+
+AI agents use the `join_channel` tool before issuing Figma commands:
+
+```typescript
+// Tool definition
+server.tool(
+  "join_channel",
+  "Join a specific channel to communicate with Figma",
+  {
+    channel: z.string().describe("The name of the channel to join")
+  },
+  async ({ channel }: any) => {
+    await joinChannel(channel);
+    return {
+      content: [{
+        type: "text",
+        text: `Successfully joined channel: ${channel}`
+      }]
+    };
+  }
+);
+```
+
+### Example Usage
+
+<CodeGroup>
+
+```typescript Claude Code
+// User: "Create a blue frame in my-project channel"
+
+// Step 1: Join channel
+await join_channel({ channel: "my-project" });
+// ✓ Successfully joined channel: my-project
+
+// Step 2: Create frame
+await create_frame({
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 200,
+  fillColor: { r: 0, g: 0.5, b: 1, a: 1 }
+});
+// ✓ Created frame "Frame" with ID: frame-456
+```
+
+```typescript Cursor
+// User: "Join design-team and get document info"
+
+// Step 1: Join channel
+await join_channel({ channel: "design-team" });
+
+// Step 2: Get document info
+await get_document_info();
+// Returns: { name: "Design System", ... }
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+### "Must join a channel before sending commands"
+
+**Cause**: Attempting to send commands without joining a channel first.
+
+**Solution**:
+```typescript
+// Always join a channel first
+await join_channel({ channel: "my-channel" });
+
+// Then send commands
+await get_document_info();
+```
+
+### "No other clients in channel to receive message"
+
+**Cause**: The Figma plugin hasn't joined the same channel.
+
+**Solution**:
+1. Open the Figma plugin UI
+2. Connect to the relay server
+3. Join the same channel name as your MCP server
+
+### Messages Not Received
+
+**Cause**: MCP server and Figma plugin are in different channels.
+
+**Solution**: Verify both clients joined the **exact same channel name** (case-sensitive):
+
+```bash
+# MCP Server log
+[INFO] Joined channel: my-project
+
+# Figma Plugin UI
+Channel: my-project ✓ Connected
+```
+
+## Channel State Management
+
+The relay automatically handles channel cleanup:
+
+```typescript socket.ts
+// When a client disconnects
+websocket: {
+  close(ws: ServerWebSocket<any>) {
+    // Remove client from all channels
+    channels.forEach((clients) => {
+      clients.delete(ws);
+    });
+    
+    // Empty channels are kept in the Map
+    // They'll be reused when new clients join
+  }
+}
+```
+
+<Info>
+  Channels persist in memory even when empty. Restart the relay server (`bun socket`) to clear all channels.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="System Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand the full three-component pipeline
+  </Card>
+  <Card title="WebSocket Relay" icon="server" href="/concepts/websocket-relay">
+    Learn about relay server configuration
+  </Card>
+</CardGroup>

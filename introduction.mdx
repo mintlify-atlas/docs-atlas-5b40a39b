@@ -1,0 +1,194 @@
+---
+title: 'Talk to Figma MCP'
+description: 'Bridge AI agents with Figma for automated design workflows'
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="Hero Dark"
+/>
+
+## What is Talk to Figma MCP?
+
+Talk to Figma MCP is a Model Context Protocol (MCP) integration that enables AI agents like Cursor and Claude Code to communicate directly with Figma. This powerful bridge allows you to read designs, modify them programmatically, and automate complex design workflows using natural language.
+
+The integration implements a three-component architecture that facilitates seamless communication between AI agents and Figma:
+
+```
+Claude Code / Cursor ←(stdio)→ MCP Server ←(WebSocket)→ WebSocket Relay ←(WebSocket)→ Figma Plugin
+```
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="Read & Analyze Designs"
+    icon="magnifying-glass"
+    href="#document-analysis"
+  >
+    Extract document structure, selection info, node details, and annotations from your Figma files
+  </Card>
+  <Card
+    title="Modify Elements"
+    icon="pen-to-square"
+    href="#design-modifications"
+  >
+    Create shapes, update text content, adjust layouts, and apply styling changes programmatically
+  </Card>
+  <Card
+    title="Automate Workflows"
+    icon="robot"
+    href="#automation"
+  >
+    Bulk text replacement, instance override propagation, and reaction-to-connector conversion
+  </Card>
+  <Card
+    title="Export Assets"
+    icon="download"
+    href="#export"
+  >
+    Export nodes as images in multiple formats (PNG, JPG, SVG, PDF)
+  </Card>
+</CardGroup>
+
+## How It Works
+
+The Talk to Figma MCP consists of three interconnected components:
+
+### 1. MCP Server
+
+The MCP server (`cursor-talk-to-figma-mcp`) implements the Model Context Protocol and exposes 50+ tools for interacting with Figma. It communicates with AI agents via stdio and with the WebSocket relay via WebSocket connections.
+
+### 2. WebSocket Relay
+
+A lightweight Bun-based WebSocket server running on port 3055 that routes messages between the MCP server and Figma plugin using channel-based isolation. Multiple clients can work independently by joining different channels.
+
+### 3. Figma Plugin
+
+A Figma/FigJam plugin that runs inside the Figma application, executing commands and returning results to the MCP server through the WebSocket relay.
+
+## Available Tools
+
+Talk to Figma MCP provides comprehensive tools organized into categories:
+
+### Document Analysis
+- Get document information and current selection
+- Read design details without parameters
+- Query specific nodes or multiple nodes
+- Extract annotations and prototype reactions
+
+### Element Creation
+- Create rectangles, frames, and text nodes
+- Instantiate components with custom properties
+- Clone existing nodes with position offsets
+
+### Text Operations
+- Scan text nodes with intelligent chunking
+- Update single or multiple text contents
+- Batch text replacement workflows
+
+### Layout & Styling
+- Configure auto-layout (mode, padding, alignment, spacing)
+- Set fill and stroke colors
+- Adjust corner radius and sizing modes
+- Move and resize nodes
+
+### Advanced Features
+- Manage component instances and overrides
+- Create FigJam connector lines from prototype flows
+- Set and batch-create native annotations
+- Export nodes as images
+
+<Note>
+  All tools use Zod validation for parameters and include 30-second timeouts with automatic inactivity timer resets for long-running operations.
+</Note>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Bulk Text Content Replacement">
+    Automatically scan and replace text content across hundreds of text nodes in your design system. Perfect for localization, content updates, and A/B testing variations.
+  </Accordion>
+  <Accordion title="Instance Override Propagation">
+    Extract component instance overrides from a source instance and propagate them to multiple target instances with a single command. Dramatically reduces repetitive design work.
+  </Accordion>
+  <Accordion title="Prototype Flow Visualization">
+    Convert Figma prototype reactions ("noodles") into visible FigJam connector lines for clearer documentation and flow mapping.
+  </Accordion>
+  <Accordion title="Annotation Conversion">
+    Transform legacy manual annotation markers into Figma's native annotation system with proper linking and categorization.
+  </Accordion>
+</AccordionGroup>
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running in minutes with the quick start guide
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Detailed installation instructions for all package managers
+  </Card>
+</CardGroup>
+
+## Requirements
+
+- **Bun**: JavaScript runtime and toolkit (recommended) or Node.js
+- **Figma Desktop App** or **Figma in Browser**: For running the plugin
+- **Cursor** or **Claude Code**: AI agent with MCP support
+- **Network Access**: Localhost WebSocket connection (port 3055)
+
+## Architecture Benefits
+
+<CardGroup cols={2}>
+  <Card title="Channel Isolation" icon="shield">
+    Multiple users can work independently by joining different channels, preventing message collision
+  </Card>
+  <Card title="Progress Updates" icon="chart-line">
+    Long-running operations provide real-time progress updates and reset inactivity timers
+  </Card>
+  <Card title="Auto-Reconnection" icon="arrows-rotate">
+    WebSocket connections automatically reconnect after 2 seconds on disconnect
+  </Card>
+  <Card title="Chunked Processing" icon="layer-group">
+    Large operations (100+ nodes) are chunked to prevent Figma UI freezing
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Steps>
+  <Step title="Install Dependencies">
+    Follow the [installation guide](/installation) to set up Bun and configure your environment
+  </Step>
+  <Step title="Configure MCP">
+    Add the MCP server to your Cursor or Claude Code configuration
+  </Step>
+  <Step title="Start WebSocket Server">
+    Launch the WebSocket relay to enable communication
+  </Step>
+  <Step title="Connect Figma Plugin">
+    Install and run the Figma plugin, then join a channel
+  </Step>
+  <Step title="Start Building">
+    Use natural language to interact with your Figma designs
+  </Step>
+</Steps>
+
+<Note>
+  Check out the [Quick Start guide](/quickstart) for a hands-on walkthrough, or explore the full [API reference](/api/document-selection/get-document-info) to see all available tools.
+</Note>

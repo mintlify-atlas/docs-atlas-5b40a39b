@@ -1,0 +1,92 @@
+---
+title: resize_node
+description: Resize a node in Figma
+---
+
+Change the dimensions of a node by setting new width and height values.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to resize
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  New width in pixels (must be positive)
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  New height in pixels (must be positive)
+</ParamField>
+
+## Response
+
+Returns the name of the resized node and its new dimensions.
+
+```json
+{
+  "name": "Container Frame"
+}
+```
+
+## Examples
+
+### Resize a frame to standard mobile dimensions
+
+```typescript
+await resize_node({
+  nodeId: "123:456",
+  width: 375,
+  height: 812
+});
+```
+
+### Make a button wider
+
+```typescript
+await resize_node({
+  nodeId: "789:012",
+  width: 200,
+  height: 48
+});
+```
+
+### Proportionally scale an element
+
+```typescript
+// Get current dimensions
+const nodeInfo = await get_node_info({ nodeId: "123:456" });
+const currentWidth = nodeInfo.absoluteBoundingBox.width;
+const currentHeight = nodeInfo.absoluteBoundingBox.height;
+
+// Double the size while maintaining aspect ratio
+await resize_node({
+  nodeId: "123:456",
+  width: currentWidth * 2,
+  height: currentHeight * 2
+});
+```
+
+### Create a square from a rectangle
+
+```typescript
+const nodeInfo = await get_node_info({ nodeId: "123:456" });
+const maxDimension = Math.max(
+  nodeInfo.absoluteBoundingBox.width,
+  nodeInfo.absoluteBoundingBox.height
+);
+
+await resize_node({
+  nodeId: "123:456",
+  width: maxDimension,
+  height: maxDimension
+});
+```
+
+## Notes
+
+- Both width and height must be positive numbers
+- Resizing affects the node's bounding box; content inside may overflow or be clipped
+- Text nodes will reflow text content to fit the new dimensions
+- Auto-layout frames may constrain resizing behavior based on their layout settings
+- Children of resized frames are not automatically scaled

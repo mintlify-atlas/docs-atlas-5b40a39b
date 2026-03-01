@@ -1,0 +1,201 @@
+---
+title: create_connections
+description: Draw visual connector lines between nodes to represent prototype flows and user journeys
+---
+
+## Overview
+
+The `create_connections` tool creates connector lines between nodes using the style defined by `set_default_connector`. Each connection visually represents a relationship (e.g., navigation, overlay trigger) and can include optional text labels.
+
+**Prerequisite:** A default connector must be set using `set_default_connector` before calling this tool.
+
+## Parameters
+
+<ParamField path="connections" type="array" required>
+  Array of connection objects. Each object defines a single connector line:
+  
+  <Expandable title="Connection object properties">
+    <ParamField path="startNodeId" type="string" required>
+      The ID of the node where the connector begins (source node)
+    </ParamField>
+    
+    <ParamField path="endNodeId" type="string" required>
+      The ID of the node where the connector ends (destination node)
+    </ParamField>
+    
+    <ParamField path="text" type="string" optional>
+      Optional label text to display on the connector line. Use this to describe the interaction (e.g., "On click, navigate to Dashboard").
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+JSON response with creation summary:
+
+```json
+{
+  "success": true,
+  "message": "Created 5 connections",
+  "created": 5,
+  "failed": 0
+}
+```
+
+## Example Usage
+
+### Basic connector between two frames
+
+```typescript
+await create_connections({
+  connections: [
+    {
+      startNodeId: "101:1",
+      endNodeId: "202:5",
+      text: "Navigate to home screen"
+    }
+  ]
+});
+```
+
+### Multiple connections from reactions data
+
+```typescript
+// After extracting reactions with get_reactions:
+const reactions = await get_reactions({ nodeIds: ["101:1", "101:2", "101:3"] });
+
+// Process using reaction_to_connector_strategy prompt:
+// This filters valid navigation actions and generates text labels
+
+const connections = [
+  {
+    startNodeId: "101:1",
+    endNodeId: "202:1",
+    text: "On click, navigate to Profile"
+  },
+  {
+    startNodeId: "101:2",
+    endNodeId: "202:3",
+    text: "On click, open Settings overlay"
+  },
+  {
+    startNodeId: "101:3",
+    endNodeId: "202:5",
+    text: "On drag, swap to Edit mode"
+  }
+];
+
+await create_connections({ connections });
+```
+
+### Visualizing user journey flows
+
+```typescript
+// Create a complete user journey map
+const journeyConnections = [
+  { startNodeId: "onboarding:1", endNodeId: "onboarding:2", text: "Next" },
+  { startNodeId: "onboarding:2", endNodeId: "onboarding:3", text: "Next" },
+  { startNodeId: "onboarding:3", endNodeId: "dashboard:1", text: "Get started" },
+  { startNodeId: "dashboard:1", endNodeId: "profile:1", text: "View profile" },
+  { startNodeId: "dashboard:1", endNodeId: "settings:1", text: "Open settings" }
+];
+
+await create_connections({ connections: journeyConnections });
+```
+
+## Complete Workflow: Prototype Noodle Visualization
+
+This tool is part of a three-step workflow to visualize Figma prototype flows:
+
+### Step 1: Set default connector style
+
+```typescript
+// Check if default connector exists
+const status = await set_default_connector({});
+
+if (!status.success) {
+  // User must:
+  // 1. Copy a FigJam connector
+  // 2. Paste it on the Figma page
+  // 3. Run: set_default_connector({ connectorId: "PASTED_CONNECTOR_ID" })
+}
+```
+
+### Step 2: Extract prototype reactions
+
+```typescript
+// Get interactive nodes (buttons, frames with prototype triggers)
+const interactiveNodes = await scan_nodes_by_types({
+  nodeId: "parent-frame-id",
+  types: ["FRAME", "COMPONENT", "INSTANCE"]
+});
+
+const nodeIds = interactiveNodes.map(n => n.id);
+
+// Extract reactions
+const reactionData = await get_reactions({ nodeIds });
+```
+
+### Step 3: Process reactions and create connectors
+
+```typescript
+// Follow the reaction_to_connector_strategy prompt:
+// - Filter reactions with action types: NAVIGATE, OPEN_OVERLAY, SWAP_OVERLAY
+// - Extract sourceNodeId and destinationId
+// - Generate descriptive text labels
+
+const connectionsToCreate = [
+  // Example output from strategy:
+  { startNodeId: "101:1", endNodeId: "202:1", text: "On click, navigate to Dashboard" },
+  { startNodeId: "101:5", endNodeId: "303:2", text: "On click, open Help overlay" }
+];
+
+// Create all connections
+await create_connections({ connections: connectionsToCreate });
+```
+
+## Use Cases
+
+### Prototype flow documentation
+
+Automatically generate visual flowcharts showing how users navigate through a prototype.
+
+### Sitemap generation
+
+Create a hierarchical site map by connecting parent pages to child pages with labeled connectors.
+
+### User journey mapping
+
+Visualize end-to-end user journeys across multiple screens with annotated transition labels.
+
+### Design handoff
+
+Provide developers with clear visual indicators of navigation flows and interaction triggers.
+
+## Notes
+
+- **Empty array check:** If `connections` array is empty, returns `"No connections provided"` message
+- **Batch processing:** All connections are created in a single operation for performance
+- **Text labels:** Optional but highly recommended for clarity—include trigger type and action
+- **Connector style:** Inherits all visual properties from the default connector (color, weight, arrows)
+- **Node validation:** Ensure both `startNodeId` and `endNodeId` exist on the current page
+
+## Error Handling
+
+### No default connector set
+
+If `set_default_connector` hasn't been called, you'll receive an error. Resolve by:
+
+1. Copying a FigJam connector to the page
+2. Running `set_default_connector({ connectorId: "..." })`
+
+### Invalid node IDs
+
+If a node ID doesn't exist, that specific connection will fail. Check the response for `failed` count.
+
+## Related Tools
+
+- [get_reactions](/api/prototyping-connections/get-reactions) - Extract prototype interaction data
+- [set_default_connector](/api/prototyping-connections/set-default-connector) - Configure connector template style
+- [scan_nodes_by_types](/api/scanning/scan-nodes-by-types) - Find interactive elements to analyze
+- **reaction_to_connector_strategy** prompt - Step-by-step guide for the complete workflow

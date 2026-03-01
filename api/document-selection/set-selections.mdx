@@ -1,0 +1,94 @@
+---
+title: "set_selections"
+description: "Set selection to multiple nodes in Figma and scroll viewport to show them"
+---
+
+## Overview
+
+Selects multiple nodes in Figma and adjusts the viewport to show all selected nodes. This is the batch version of `set_focus`, allowing you to select and focus on multiple elements simultaneously.
+
+## Parameters
+
+<ParamField path="nodeIds" type="array" required>
+  Array of node IDs to select. All nodes must exist in the current document.
+  
+  ```typescript
+  nodeIds: ["123:456", "123:457", "123:458"]
+  ```
+</ParamField>
+
+## Return Value
+
+Returns information about all selected nodes:
+
+```json
+{
+  "count": 3,
+  "selectedNodes": [
+    {
+      "name": "Header",
+      "id": "123:456"
+    },
+    {
+      "name": "Body",
+      "id": "123:457"
+    },
+    {
+      "name": "Footer",
+      "id": "123:458"
+    }
+  ]
+}
+```
+
+## Usage Example
+
+```typescript
+const result = await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_selections",
+  arguments: {
+    nodeIds: ["123:456", "123:457", "123:458"]
+  }
+});
+
+console.log(`Selected ${result.count} nodes:`);
+result.selectedNodes.forEach(node => {
+  console.log(`  - ${node.name}`);
+});
+```
+
+## Behavior
+
+When you call `set_selections`:
+1. All specified nodes are selected (previous selection is replaced)
+2. The viewport adjusts to show all selected nodes
+3. If nodes are far apart, the viewport zooms out to fit them all
+
+## Best Practices
+
+<Note>
+  Use `set_selections` when you need to highlight multiple related elements, such as all instances of a component or all nodes matching a search criteria.
+</Note>
+
+<Warning>
+  Selecting too many nodes (100+) may impact performance. Consider focusing on a subset of nodes if the selection is very large.
+</Warning>
+
+## Common Use Cases
+
+- Selecting all results from a search operation
+- Highlighting related elements (e.g., all buttons in a design)
+- Selecting multiple nodes before a batch operation
+- Demonstrating relationships between design elements
+- Preparing nodes for manual editing by the user
+
+## Code Location
+
+Source: `server.ts:2493-2523`
+
+## Related Tools
+
+- [set_focus](/api/document-selection/set-focus) - Focus on a single node
+- [get_selection](/api/document-selection/get-selection) - Get current selection
+- [scan_nodes_by_types](/api/scanning/scan-nodes-by-types) - Find nodes to select

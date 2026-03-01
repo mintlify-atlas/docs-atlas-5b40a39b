@@ -1,0 +1,118 @@
+---
+title: 'get_local_components'
+description: 'Get all local components from the Figma document'
+---
+
+## Overview
+
+Retrieves all local components defined in the current Figma document. This includes main components but not component instances.
+
+## Parameters
+
+This tool takes no parameters.
+
+## Response
+
+Returns a JSON object containing all local components:
+
+<ResponseField name="components" type="array">
+  Array of component objects from the Figma document
+  
+  <Expandable title="component properties">
+    <ResponseField name="id" type="string">
+      Unique node identifier for the component
+    </ResponseField>
+    
+    <ResponseField name="key" type="string">
+      Component key used for creating instances
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Name of the component as shown in Figma
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Optional description of the component
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Always "COMPONENT" for main components
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Usage Example
+
+```typescript
+// Get all local components from the document
+const result = await get_local_components();
+
+console.log(result);
+// {
+//   "components": [
+//     {
+//       "id": "123:456",
+//       "key": "abc123def456",
+//       "name": "Button/Primary",
+//       "description": "Primary call-to-action button",
+//       "type": "COMPONENT"
+//     },
+//     {
+//       "id": "789:012",
+//       "key": "ghi789jkl012",
+//       "name": "Card/Product",
+//       "description": "Product display card",
+//       "type": "COMPONENT"
+//     }
+//   ]
+// }
+```
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Component Catalog" icon="grid">
+    Build a catalog of available components in your design system
+  </Card>
+  
+  <Card title="Instance Creation" icon="copy">
+    Get component keys needed for creating instances programmatically
+  </Card>
+  
+  <Card title="Documentation" icon="book-open">
+    Auto-generate component library documentation
+  </Card>
+  
+  <Card title="Inventory Management" icon="boxes-stacked">
+    Track and manage components across your design files
+  </Card>
+</CardGroup>
+
+## Workflow
+
+<Steps>
+  <Step title="Get components">
+    Call `get_local_components()` to retrieve all main components
+  </Step>
+  
+  <Step title="Find target component">
+    Locate the component you want to use by name or key
+  </Step>
+  
+  <Step title="Create instances">
+    Use the component's `key` with [create_component_instance](/api/components-styles/create-component-instance)
+  </Step>
+</Steps>
+
+## Notes
+
+- Only returns main components (not instances)
+- Only local components are included (not library components from other files)
+- The `key` field is essential for creating instances with `create_component_instance`
+- Components are returned in the order they appear in the document
+
+## Related Tools
+
+- [create_component_instance](/api/components-styles/create-component-instance) - Create an instance of a component
+- [get_styles](/api/components-styles/get-styles) - Get all styles from the document
+- [get_instance_overrides](/api/components-styles/get-instance-overrides) - Get overrides from a component instance

@@ -1,0 +1,256 @@
+---
+title: 'Setting up with Claude Code'
+description: 'Complete guide to integrating Talk to Figma MCP with Claude Code'
+---
+
+This guide walks you through setting up Talk to Figma MCP with Claude Code (claude.ai/code), enabling AI-powered Figma design automation through Claude's code agent.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Access to [Claude Code](https://claude.ai/code)
+- [Bun](https://bun.sh) runtime installed
+- A Figma account with editor access
+
+## Quick Setup (Recommended)
+
+The fastest way to get started is using the automated setup script:
+
+<Steps>
+  <Step title="Install Bun">
+    If you haven't installed Bun yet, run:
+    
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+  </Step>
+
+  <Step title="Clone or download the repository">
+    Get the Talk to Figma MCP repository:
+    
+    ```bash
+    git clone https://github.com/sonnylazuardi/talk-to-figma-mcp.git
+    cd talk-to-figma-mcp
+    ```
+  </Step>
+
+  <Step title="Run automated setup">
+    Execute the setup script which will install dependencies and configure the MCP server:
+    
+    ```bash
+    bun setup
+    ```
+    
+    This command will:
+    - Install all required dependencies
+    - Create `.mcp.json` in your project root with the MCP server configuration
+    - Also create `.cursor/mcp.json` for Cursor compatibility
+  </Step>
+
+  <Step title="Start the WebSocket server">
+    Launch the WebSocket relay server that connects Claude Code to Figma:
+    
+    ```bash
+    bun socket
+    ```
+    
+    The server will start on port 3055. Keep this terminal window open.
+  </Step>
+
+  <Step title="Install the Figma plugin">
+    See the [Figma Plugin Setup](/guides/figma-plugin) guide for detailed instructions on installing and configuring the Figma plugin.
+  </Step>
+</Steps>
+
+## Manual Setup
+
+If you prefer manual configuration:
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    bun install
+    ```
+  </Step>
+
+  <Step title="Add MCP server via CLI">
+    Use the Claude Code CLI to add the MCP server:
+    
+    ```bash
+    claude mcp add TalkToFigma -- bunx cursor-talk-to-figma-mcp@latest
+    ```
+    
+    Alternatively, create `.mcp.json` in your project root manually:
+    
+    ```json
+    {
+      "mcpServers": {
+        "TalkToFigma": {
+          "command": "bunx",
+          "args": ["cursor-talk-to-figma-mcp@latest"]
+        }
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Start the WebSocket server">
+    ```bash
+    bun socket
+    ```
+  </Step>
+</Steps>
+
+## Configuration Files
+
+The setup creates a `.mcp.json` configuration file:
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": [
+        "cursor-talk-to-figma-mcp@latest"
+      ]
+    }
+  }
+}
+```
+
+This configuration:
+- Uses `bunx` to run the MCP server package
+- Always fetches the latest version from npm
+- Works with both Claude Code and Cursor IDE
+
+## Architecture Overview
+
+Understanding the communication flow helps with troubleshooting:
+
+```
+Claude Code ←(stdio)→ MCP Server ←(WebSocket)→ WebSocket Relay ←(WebSocket)→ Figma Plugin
+```
+
+- **Claude Code**: Issues commands via MCP protocol over stdio
+- **MCP Server**: Translates commands and manages communication
+- **WebSocket Relay**: Routes messages between server and plugin (port 3055)
+- **Figma Plugin**: Executes commands in Figma and returns results
+
+## Verification
+
+To verify your setup is working:
+
+<Steps>
+  <Step title="Check MCP server status">
+    The TalkToFigma MCP server should be available to Claude Code. You can verify by asking Claude about available MCP tools.
+  </Step>
+
+  <Step title="Test connection">
+    With the WebSocket server running and Figma plugin active:
+    
+    1. Ask Claude Code to "join channel test"
+    2. Ask Claude Code to "get document info"
+    
+    If you receive Figma document information, the setup is successful!
+  </Step>
+</Steps>
+
+## Common Workflows
+
+### Starting a session
+
+<Steps>
+  <Step title="Start WebSocket server">
+    ```bash
+    bun socket
+    ```
+  </Step>
+
+  <Step title="Open Figma and run the plugin">
+    Launch the Cursor MCP Plugin in Figma and connect to a channel.
+  </Step>
+
+  <Step title="Join the same channel in Claude Code">
+    Ask Claude Code:
+    ```
+    Join channel [your-channel-name]
+    ```
+  </Step>
+
+  <Step title="Start working">
+    You can now ask Claude Code to interact with your Figma designs.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### MCP server not found
+
+- Ensure `.mcp.json` exists in your project root
+- Verify the JSON syntax is valid
+- Check that `bunx` is available in your PATH
+- Try adding the server via CLI: `claude mcp add TalkToFigma -- bunx cursor-talk-to-figma-mcp@latest`
+
+### Connection timeouts
+
+- Confirm the WebSocket server is running (`bun socket`)
+- Check that port 3055 is not blocked by a firewall
+- Ensure the Figma plugin is active and connected to the same channel
+
+### Commands fail silently
+
+- Always call `join_channel` before issuing any Figma commands
+- Verify you're in the same channel in both Claude Code and the Figma plugin
+- Check the WebSocket server logs for error messages
+
+### Best practices
+
+- Always start with `join_channel` to establish connection
+- Use `get_document_info` to understand the design structure before making changes
+- Use `get_selection` or `read_my_design` before modifying elements
+- Prefer batch operations for better performance
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Figma Plugin Setup" icon="puzzle-piece" href="/guides/figma-plugin">
+    Install and configure the Figma plugin
+  </Card>
+  <Card title="Local Development" icon="code" href="/guides/local-development">
+    Set up a local development environment
+  </Card>
+</CardGroup>
+
+## Advanced Configuration
+
+### Using a specific version
+
+To lock to a specific version:
+
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@0.3.3"]
+    }
+  }
+}
+```
+
+### Custom WebSocket port
+
+If you need to use a different port for the WebSocket server:
+
+```bash
+PORT=4000 bun socket
+```
+
+Remember to update the connection URL in the Figma plugin accordingly.
+
+### Environment variables
+
+The WebSocket server supports these environment variables:
+
+- `PORT`: WebSocket server port (default: 3055)

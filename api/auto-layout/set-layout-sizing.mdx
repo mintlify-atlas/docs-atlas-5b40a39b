@@ -1,0 +1,176 @@
+---
+title: set_layout_sizing
+description: Set horizontal and vertical sizing modes for an auto-layout frame in Figma
+---
+
+## Overview
+
+Control how an auto-layout frame resizes itself in response to its content and parent container. Choose between fixed dimensions, hugging content, or filling available space.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the frame to modify
+</ParamField>
+
+<ParamField path="layoutSizingHorizontal" type="enum">
+  Horizontal sizing mode
+  
+  **Options:**
+  - `FIXED` - Frame has a fixed width
+  - `HUG` - Frame width adjusts to fit its content (for frames/text only)
+  - `FILL` - Frame fills available width in parent auto-layout (for auto-layout children only)
+</ParamField>
+
+<ParamField path="layoutSizingVertical" type="enum">
+  Vertical sizing mode
+  
+  **Options:**
+  - `FIXED` - Frame has a fixed height
+  - `HUG` - Frame height adjusts to fit its content (for frames/text only)
+  - `FILL` - Frame fills available height in parent auto-layout (for auto-layout children only)
+</ParamField>
+
+<Note>
+  - Use `HUG` when you want the frame to automatically resize based on its content
+  - Use `FILL` when the frame is a child of an auto-layout parent and should take up available space
+  - Use `FIXED` when you need precise control over dimensions
+</Note>
+
+## Response
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Set layout sizing (horizontal: HUG, vertical: FIXED) for frame \"Button\""
+    }
+  ]
+}
+```
+
+## Examples
+
+### Button that hugs content width
+
+```typescript
+// Button expands horizontally based on text length
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_sizing",
+  arguments: {
+    nodeId: "123:456",
+    layoutSizingHorizontal: "HUG",
+    layoutSizingVertical: "HUG"
+  }
+});
+```
+
+### Card that fills container width
+
+```typescript
+// Card takes full width of parent auto-layout
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_sizing",
+  arguments: {
+    nodeId: "123:456",
+    layoutSizingHorizontal: "FILL",
+    layoutSizingVertical: "HUG"
+  }
+});
+```
+
+### Fixed-size container
+
+```typescript
+// Container maintains exact dimensions
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_sizing",
+  arguments: {
+    nodeId: "123:456",
+    layoutSizingHorizontal: "FIXED",
+    layoutSizingVertical: "FIXED"
+  }
+});
+```
+
+### Sidebar that fills height
+
+```typescript
+// Sidebar stretches to full height of parent
+await use_mcp_tool({
+  server_name: "TalkToFigma",
+  tool_name: "set_layout_sizing",
+  arguments: {
+    nodeId: "123:456",
+    layoutSizingHorizontal: "FIXED",
+    layoutSizingVertical: "FILL"
+  }
+});
+```
+
+## Sizing Mode Behavior
+
+### FIXED
+- Frame maintains explicit width/height values
+- Content may overflow or be clipped
+- Best for: Avatars, icons, fixed-width sidebars
+
+### HUG
+- Frame automatically resizes to fit content
+- Respects padding and spacing settings
+- Best for: Buttons, tags, chips, labels
+- **Limitation**: Only works on frames/text, not on auto-layout children
+
+### FILL
+- Frame expands to fill available space in parent
+- Requires parent to be an auto-layout frame
+- Best for: Content areas, cards in lists, responsive layouts
+- **Limitation**: Only works for children of auto-layout frames
+
+## Use Cases
+
+**Buttons**: `HUG`/`HUG` - Automatically size based on text content
+
+**List items**: `FILL`/`HUG` - Fill parent width, hug content height
+
+**Cards**: `FILL`/`HUG` - Responsive width, height based on content
+
+**Navigation sidebar**: `FIXED`/`FILL` - Fixed width, fill full height
+
+**Modal content**: `FIXED`/`HUG` - Fixed width, height adjusts to content
+
+## Common Patterns
+
+### Responsive Card List
+```typescript
+// Parent container
+await set_layout_mode({ nodeId: "parent", layoutMode: "VERTICAL" });
+
+// Each card fills width, hugs content height
+await set_layout_sizing({
+  nodeId: "card-1",
+  layoutSizingHorizontal: "FILL",
+  layoutSizingVertical: "HUG"
+});
+```
+
+### Button Group
+```typescript
+// Each button hugs its content
+await set_layout_sizing({
+  nodeId: "button-1",
+  layoutSizingHorizontal: "HUG",
+  layoutSizingVertical: "HUG"
+});
+```
+
+## Related Tools
+
+- [set_layout_mode](/api/auto-layout/set-layout-mode) - Enable auto-layout on a frame
+- [set_padding](/api/auto-layout/set-padding) - Add spacing inside frames
+- [set_axis_align](/api/auto-layout/set-axis-align) - Control child alignment
+- [resize_node](/api/nodes/resize-node) - Manually resize frames

@@ -1,0 +1,302 @@
+---
+title: Text Replacement Strategy Prompt
+description: Systematic approach for replacing text in Figma designs with intelligent chunking
+---
+
+## Overview
+
+The `text_replacement_strategy` prompt provides AI agents with a comprehensive methodology for replacing text in Figma designs. It emphasizes intelligent chunking, progressive verification, and maintaining design integrity during large-scale text updates.
+
+## When to Use
+
+Use this prompt when:
+- Replacing text across multiple nodes
+- Translating designs to different languages
+- Updating content in tables, lists, or forms
+- Filling in placeholder text
+- Batch updating text content
+
+## Strategy Overview
+
+### 1. Analyze Design & Identify Structure
+
+**Start by understanding the design organization:**
+
+```typescript
+// Scan all text nodes to understand structure
+const textNodes = await scan_text_nodes({ nodeId: selectedNodeId });
+
+// Get node context
+const nodeInfo = await get_node_info({ nodeId: selectedNodeId });
+```
+
+**Use AI pattern recognition to identify:**
+- **Tables** - Rows, columns, headers, cells
+- **Lists** - Items, headers, nested lists
+- **Card groups** - Similar cards with recurring text fields
+- **Forms** - Labels, input fields, validation text
+- **Navigation** - Menu items, breadcrumbs
+
+### 2. Strategic Chunking
+
+**Divide replacement tasks into logical content chunks based on design structure.**
+
+#### Chunking Strategies
+
+**Structural Chunking:**
+- Table rows/columns
+- List sections
+- Card groups
+
+**Spatial Chunking:**
+- Top-to-bottom sections
+- Left-to-right areas
+- Screen regions
+
+**Semantic Chunking:**
+- Content related to the same topic
+- Functionality groups
+
+**Component-Based Chunking:**
+- Similar component instances together
+
+### 3. Progressive Replacement with Verification
+
+**Replace text chunk by chunk with continuous verification:**
+
+```typescript
+// Step 1: Clone the node for safe editing
+const cloned = await clone_node({ 
+  nodeId: selectedNodeId, 
+  x: newX, 
+  y: newY 
+});
+
+// Step 2: Replace text in chunks
+for (const chunk of textChunks) {
+  // Replace text in this chunk
+  await set_multiple_text_contents({
+    nodeId: cloned.id,
+    text: chunk.map(item => ({
+      nodeId: item.nodeId,
+      text: item.newText
+    }))
+  });
+  
+  // Step 3: Verify chunk with image export
+  const verification = await export_node_as_image({
+    nodeId: chunk.parentNodeId,
+    format: "PNG",
+    scale: determineScale(chunk.size)
+  });
+  
+  // Check for issues before proceeding
+  // Fix any problems found before continuing
+}
+```
+
+### 4. Intelligent Handling for Table Data
+
+**For tabular content:**
+
+```typescript
+// Process one row at a time
+const tableRows = groupTextNodesByRow(textNodes);
+
+for (const row of tableRows) {
+  await set_multiple_text_contents({
+    nodeId: tableNodeId,
+    text: row.cells.map(cell => ({
+      nodeId: cell.nodeId,
+      text: cell.newText
+    }))
+  });
+  
+  // Verify row alignment and spacing
+  await export_node_as_image({ 
+    nodeId: row.nodeId, 
+    format: "PNG", 
+    scale: 0.7 
+  });
+}
+```
+
+**Maintain:**
+- Cell alignment and spacing
+- Header/data relationships
+- Conditional formatting based on content
+
+### 5. Smart Text Adaptation
+
+**Adapt text based on container constraints:**
+
+- Auto-detect space constraints
+- Adjust text length appropriately
+- Apply line breaks at linguistic boundaries
+- Maintain text hierarchy and emphasis
+- Consider font scaling for critical content
+
+### 6. Export Scale Guidelines
+
+**Scale exports appropriately based on chunk size:**
+
+```typescript
+function determineScale(elementCount: number): number {
+  if (elementCount <= 5) return 1.0;      // Small chunks
+  if (elementCount <= 20) return 0.7;     // Medium chunks
+  if (elementCount <= 50) return 0.5;     // Large chunks
+  if (elementCount > 50) return 0.3;      // Very large chunks
+  return 0.2;                              // Full design
+}
+```
+
+### 7. Final Verification
+
+**After all chunks are processed:**
+
+```typescript
+// Export entire design at reduced scale
+const finalVerification = await export_node_as_image({
+  nodeId: clonedNodeId,
+  format: "PNG",
+  scale: 0.2
+});
+
+// Check for:
+// - Cross-chunk consistency
+// - Proper text flow between sections
+// - Design harmony across full composition
+```
+
+## Chunking Examples
+
+### Tables: Process by Rows
+
+```typescript
+// Group table text nodes by row (5-10 rows per chunk)
+const rows = groupByRow(textNodes, { rowsPerChunk: 7 });
+
+for (const rowChunk of rows) {
+  await set_multiple_text_contents({
+    nodeId: tableId,
+    text: rowChunk.map(row => row.cells.map(cell => ({
+      nodeId: cell.nodeId,
+      text: cell.newText
+    }))).flat()
+  });
+}
+```
+
+### Card Lists: Group Similar Cards
+
+```typescript
+// Group 3-5 similar cards per chunk
+const cardChunks = chunk(cardNodes, 4);
+
+for (const cards of cardChunks) {
+  await set_multiple_text_contents({
+    nodeId: listContainerId,
+    text: cards.map(card => card.textFields.map(field => ({
+      nodeId: field.nodeId,
+      text: field.newText
+    }))).flat()
+  });
+  
+  // Verify text-to-image ratio within cards
+  await export_node_as_image({ 
+    nodeId: cards[0].parentId, 
+    format: "PNG", 
+    scale: 0.7 
+  });
+}
+```
+
+### Forms: Group Related Fields
+
+```typescript
+// Process form sections (Personal Info, Payment, etc.)
+const formSections = [
+  { name: "Personal Information", fields: [...] },
+  { name: "Payment Details", fields: [...] },
+  { name: "Shipping Address", fields: [...] }
+];
+
+for (const section of formSections) {
+  // Process labels and input fields together
+  await set_multiple_text_contents({
+    nodeId: formId,
+    text: section.fields.map(field => ({
+      nodeId: field.labelNodeId,
+      text: field.labelText
+    }))
+  });
+  
+  // Ensure validation messages and hints are updated
+}
+```
+
+### Navigation: Process Hierarchical Levels
+
+```typescript
+// Process main menu, then submenu items
+const navLevels = [
+  { level: "main", items: [...] },
+  { level: "submenu", items: [...] }
+];
+
+for (const level of navLevels) {
+  await set_multiple_text_contents({
+    nodeId: navContainerId,
+    text: level.items.map(item => ({
+      nodeId: item.nodeId,
+      text: item.newText
+    }))
+  });
+  
+  // Verify menu fit and alignment
+}
+```
+
+## Best Practices
+
+### Preserve Design Intent
+
+- Always prioritize design integrity over automation
+- Maintain alignment, spacing, and hierarchy
+- Respect the original visual structure
+
+### Structural Consistency
+
+- Keep related content together in chunks
+- Maintain relationships between elements
+- Preserve parent-child hierarchies
+
+### Visual Feedback
+
+- Verify each chunk visually before proceeding
+- Export small, targeted images for efficiency
+- Catch issues early in the process
+
+### Incremental Improvement
+
+- Learn from each chunk to improve subsequent ones
+- Adjust text length patterns as needed
+- Refine chunking strategy based on results
+
+### Balance Automation & Control
+
+- Let AI handle repetitive replacements
+- Maintain oversight for quality
+- Verify critical content manually
+
+## Related Prompts
+
+- [Design Strategy](/api/prompts/design-strategy) - For understanding design principles
+- [Read Design Strategy](/api/prompts/read-design-strategy) - For analyzing existing designs
+
+## Related Tools
+
+- [scan_text_nodes](/api/scanning/scan-text-nodes)
+- [set_multiple_text_contents](/api/modification/set-multiple-text-contents)
+- [clone_node](/api/manipulation/clone-node)
+- [export_node_as_image](/api/export/export-node-as-image)

@@ -1,0 +1,336 @@
+---
+title: Swap Overrides Instances Prompt
+description: Transfer component instance overrides between instances to maintain design consistency
+---
+
+## Overview
+
+The `swap_overrides_instances` prompt guides AI agents through the process of copying instance overrides from a source component instance and applying them to one or more target instances. This enables efficient content management across component variants while maintaining design consistency.
+
+## When to Use
+
+Use this prompt when:
+- Copying content from one component instance to others
+- Updating multiple instances with the same override values
+- Swapping instance content while preserving the underlying component
+- Filling custom slots in component instances
+- Managing component variants with different content
+
+## Process Overview
+
+### Step 1: Selection Analysis
+
+**Identify source and target instances:**
+
+```typescript
+// Get current selection
+const selection = await get_selection();
+
+// For parent components, scan for instances
+if (selection[0].type === 'COMPONENT' || selection[0].type === 'FRAME') {
+  const instances = await scan_nodes_by_types({
+    nodeId: selection[0].id,
+    types: ["INSTANCE"]
+  });
+  
+  // Identify custom slots by name patterns
+  const customSlots = instances.matchingNodes.filter(node => 
+    node.name.includes("Custom Slot") ||
+    node.name.includes("Instance Slot") ||
+    node.name.includes("[Content]")
+  );
+}
+
+// Determine which is source and which are targets
+// Usually the first filled instance is the source
+const sourceInstance = findFilledInstance(instances);
+const targetInstances = instances.filter(i => i.id !== sourceInstance.id);
+```
+
+### Step 2: Extract Source Overrides
+
+**Capture all customizations from the source instance:**
+
+```typescript
+// Extract overrides from source
+const result = await get_instance_overrides({ 
+  nodeId: sourceInstance.id 
+});
+
+// Expected response:
+// "Successfully got instance overrides: Got component information from [instance name]"
+
+if (!result.success) {
+  throw new Error(`Failed to get overrides: ${result.message}`);
+}
+
+console.log(`Extracted overrides from: ${sourceInstance.name}`);
+console.log(`Main component: ${result.mainComponentId}`);
+console.log(`Override count: ${result.overridesCount}`);
+```
+
+**What Gets Captured:**
+- Text content overrides
+- Property value changes
+- Style overrides
+- Nested instance swaps
+- Visibility changes
+
+### Step 3: Apply Overrides to Targets
+
+**Transfer captured overrides to target instances:**
+
+```typescript
+// Apply to multiple targets
+const result = await set_instance_overrides({
+  sourceInstanceId: sourceInstance.id,
+  targetNodeIds: targetInstances.map(t => t.id)
+});
+
+// Check results
+if (result.success) {
+  console.log(`Applied ${result.totalCount} overrides to ${result.results.length} instances`);
+  
+  // Review individual results
+  result.results.forEach(r => {
+    if (r.success) {
+      console.log(`✓ ${r.instanceName}: ${r.appliedCount} overrides applied`);
+    } else {
+      console.log(`✗ ${r.instanceName}: ${r.message}`);
+    }
+  });
+} else {
+  console.error(`Failed: ${result.message}`);
+}
+```
+
+### Step 4: Verification
+
+**Verify the results:**
+
+```typescript
+// Verify by reading the design
+const verifyTarget = await get_node_info({ 
+  nodeId: targetInstances[0].id 
+});
+
+// Or use read_my_design for full context
+const fullVerification = await read_my_design();
+
+console.log("Verification complete:", verifyTarget.name);
+```
+
+## Complete Example
+
+### Example: Filling Product Card Instances
+
+```typescript
+async function fillProductCards() {
+  // Step 1: Get selection and analyze
+  const selection = await get_selection();
+  const containerNodeId = selection[0].id;
+  
+  // Scan for all instances
+  const instances = await scan_nodes_by_types({
+    nodeId: containerNodeId,
+    types: ["INSTANCE"]
+  });
+  
+  console.log(`Found ${instances.count} instances`);
+  
+  // Identify source (first card with content) and targets
+  const sourceInstance = instances.matchingNodes[0]; // Assuming first is filled
+  const targetInstances = instances.matchingNodes.slice(1);
+  
+  // Step 2: Extract overrides from source
+  console.log("Extracting overrides from source...");
+  const extractResult = await get_instance_overrides({
+    nodeId: sourceInstance.id
+  });
+  
+  if (!extractResult.success) {
+    return `Error: ${extractResult.message}`;
+  }
+  
+  console.log(`Extracted ${extractResult.overridesCount} overrides`);
+  
+  // Step 3: Apply to targets
+  console.log(`Applying overrides to ${targetInstances.length} targets...`);
+  const applyResult = await set_instance_overrides({
+    sourceInstanceId: sourceInstance.id,
+    targetNodeIds: targetInstances.map(t => t.id)
+  });
+  
+  // Step 4: Verify and report
+  if (applyResult.success) {
+    const successCount = applyResult.results.filter(r => r.success).length;
+    return `Success! Applied overrides to ${successCount}/${targetInstances.length} instances`;
+  } else {
+    return `Failed: ${applyResult.message}`;
+  }
+}
+```
+
+### Example: Custom Slot Management
+
+```typescript
+async function manageCustomSlots() {
+  // Scan for instances with custom slots
+  const selection = await get_selection();
+  const instances = await scan_nodes_by_types({
+    nodeId: selection[0].id,
+    types: ["INSTANCE"]
+  });
+  
+  // Filter for instances with "Custom Slot" in name
+  const slottedInstances = instances.matchingNodes.filter(node =>
+    node.name.includes("Custom Slot")
+  );
+  
+  console.log(`Found ${slottedInstances.length} instances with custom slots`);
+  
+  // Use first as template
+  const template = slottedInstances[0];
+  const targets = slottedInstances.slice(1);
+  
+  // Extract template overrides
+  await get_instance_overrides({ nodeId: template.id });
+  
+  // Apply to all other slotted instances
+  await set_instance_overrides({
+    sourceInstanceId: template.id,
+    targetNodeIds: targets.map(t => t.id)
+  });
+  
+  return `Filled ${targets.length} custom slots from template`;
+}
+```
+
+## Key Tips
+
+### Always Join Channel First
+
+```typescript
+// Must be first operation in any session
+await join_channel({ channel: "my-design-session" });
+```
+
+### Check Full Selection
+
+```typescript
+// When working with multiple targets
+const selection = await get_selection();
+console.log(`Selected ${selection.length} nodes`);
+selection.forEach(s => console.log(`- ${s.name} (${s.type})`));
+```
+
+### Preserve Component Relationships
+
+- Use instance overrides instead of direct text manipulation
+- Maintains component connection
+- Preserves ability to sync with main component
+- Keeps design system integrity
+
+### Handle Different Instance Types
+
+```typescript
+// Check if target is compatible
+for (const target of targetInstances) {
+  if (target.type !== 'INSTANCE') {
+    console.warn(`Skipping ${target.name}: not an instance`);
+    continue;
+  }
+  
+  // Apply overrides
+  await set_instance_overrides({
+    sourceInstanceId: sourceInstance.id,
+    targetNodeIds: [target.id]
+  });
+}
+```
+
+## Common Use Cases
+
+### 1. Product Listings
+
+- Source: Filled product card with name, price, image
+- Targets: Empty product card instances
+- Result: All cards use same component, different content
+
+### 2. Form Templates
+
+- Source: Completed form instance with labels and validation
+- Targets: Empty form instances
+- Result: Consistent form structure with different content
+
+### 3. Navigation Menus
+
+- Source: Configured menu item with icon and text
+- Targets: Other menu item instances
+- Result: Uniform menu styling with different labels
+
+### 4. Card Grids
+
+- Source: Feature card with icon, title, description
+- Targets: Empty feature card instances
+- Result: Consistent card design with varied content
+
+## Error Handling
+
+### No Overrides Found
+
+```typescript
+const result = await get_instance_overrides({ nodeId: instanceId });
+
+if (result.overridesCount === 0) {
+  console.warn("Source instance has no overrides to copy");
+  // Either the instance hasn't been customized,
+  // or it matches the main component exactly
+}
+```
+
+### Target Not Compatible
+
+```typescript
+const result = await set_instance_overrides({
+  sourceInstanceId: sourceId,
+  targetNodeIds: [targetId]
+});
+
+if (!result.success) {
+  console.error(`Cannot apply overrides: ${result.message}`);
+  // Possible causes:
+  // - Target is not an instance
+  // - Target uses different main component
+  // - Source overrides are incompatible
+}
+```
+
+### Partial Success
+
+```typescript
+const result = await set_instance_overrides({
+  sourceInstanceId: sourceId,
+  targetNodeIds: multipleTargets
+});
+
+// Check individual results
+const failed = result.results.filter(r => !r.success);
+if (failed.length > 0) {
+  console.log(`${failed.length} instances failed:`);
+  failed.forEach(f => console.log(`- ${f.instanceName}: ${f.message}`));
+}
+```
+
+## Related Prompts
+
+- [Design Strategy](/api/prompts/design-strategy) - For creating component systems
+- [Read Design Strategy](/api/prompts/read-design-strategy) - For analyzing instances
+
+## Related Tools
+
+- [get_instance_overrides](/api/components/get-instance-overrides)
+- [set_instance_overrides](/api/components/set-instance-overrides)
+- [scan_nodes_by_types](/api/scanning/scan-nodes-by-types)
+- [get_selection](/api/selection/get-selection)
+- [get_node_info](/api/selection/get-node-info)

@@ -1,0 +1,342 @@
+---
+title: Annotation Conversion Strategy Prompt
+description: Convert manual annotations to Figma's native annotation system
+---
+
+## Overview
+
+The `annotation_conversion_strategy` prompt guides AI agents through converting manual annotations (numbered/alphabetical indicators with connected descriptions) into Figma's native annotation system. This enables better collaboration, version control, and design documentation.
+
+## When to Use
+
+Use this prompt when:
+- Converting numbered/lettered manual annotations to native annotations
+- Migrating legacy annotation systems
+- Automating annotation creation from design documentation
+- Standardizing annotation formats across teams
+- Cleaning up annotation layers after conversion
+
+## Process Overview
+
+### Step 1: Get Selection and Initial Setup
+
+**Get the frame or component containing annotations:**
+
+```typescript
+// Get the selected frame/component
+const selection = await get_selection();
+const selectedNodeId = selection[0].id;
+
+// Get available annotation categories
+const annotationData = await get_annotations({
+  nodeId: selectedNodeId,
+  includeCategories: true
+});
+const categories = annotationData.categories;
+```
+
+### Step 2: Scan Annotation Text Nodes
+
+**Identify annotation markers and descriptions:**
+
+```typescript
+// Get all text nodes in the selection
+const textNodes = await scan_text_nodes({
+  nodeId: selectedNodeId
+});
+
+// Filter for annotation markers
+// Markers typically have:
+// - Short text content (single digit/letter)
+// - Specific font styles (often bold)
+// - Located in containers with "Marker" or "Dot" in name
+// - Clear naming patterns ("1", "2", "3" or "A", "B", "C")
+
+const markers = textNodes.filter(node => {
+  const isShort = node.characters.length <= 2;
+  const hasMarkerInPath = node.name.includes("Marker") || 
+                          node.name.includes("Dot") ||
+                          node.name.includes("Annotation");
+  const isNumeric = /^\d+$/.test(node.characters);
+  const isLetter = /^[A-Z]$/.test(node.characters);
+  
+  return isShort && hasMarkerInPath && (isNumeric || isLetter);
+});
+
+// Identify description nodes
+// Usually longer text nodes near markers or with matching numbers
+const descriptions = textNodes.filter(node => {
+  return node.characters.length > 10 && !markers.includes(node);
+});
+```
+
+### Step 3: Scan Target UI Elements
+
+**Get all potential annotation targets:**
+
+```typescript
+// Scan for all UI elements that could be annotation targets
+const targetNodes = await scan_nodes_by_types({
+  nodeId: selectedNodeId,
+  types: [
+    "COMPONENT",
+    "INSTANCE",
+    "FRAME"
+  ]
+});
+```
+
+### Step 4: Match Annotations to Targets
+
+**Match each annotation to its target using multiple strategies:**
+
+#### 1. Path-Based Matching (Priority 1)
+
+```typescript
+function findTargetByPath(marker, targetNodes) {
+  // Get marker's parent container name
+  const parentName = getParentName(marker);
+  
+  // Remove annotation prefixes
+  const cleanName = parentName
+    .replace(/^Marker:\s*/i, '')
+    .replace(/^Annotation:\s*/i, '')
+    .trim();
+  
+  // Find UI elements with matching names in their path
+  return targetNodes.find(target => 
+    target.name.includes(cleanName) ||
+    getNodePath(target).includes(cleanName)
+  );
+}
+```
+
+#### 2. Name-Based Matching (Priority 2)
+
+```typescript
+function findTargetByName(description, targetNodes) {
+  // Extract key terms from description
+  const keyTerms = extractKeyTerms(description.characters);
+  
+  // Look for UI elements whose names contain these terms
+  return targetNodes.find(target => {
+    const targetNameLower = target.name.toLowerCase();
+    return keyTerms.some(term => 
+      targetNameLower.includes(term.toLowerCase())
+    );
+  });
+}
+
+function extractKeyTerms(text: string): string[] {
+  // Remove common words and extract meaningful terms
+  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at'];
+  const words = text.toLowerCase().split(/\s+/);
+  return words.filter(word => 
+    word.length > 3 && !commonWords.includes(word)
+  );
+}
+```
+
+#### 3. Proximity-Based Matching (Fallback)
+
+```typescript
+function findTargetByProximity(marker, targetNodes) {
+  // Calculate marker center point
+  const markerCenter = {
+    x: marker.absoluteBoundingBox.x + marker.absoluteBoundingBox.width / 2,
+    y: marker.absoluteBoundingBox.y + marker.absoluteBoundingBox.height / 2
+  };
+  
+  // Find closest UI element
+  let closest = null;
+  let minDistance = Infinity;
+  
+  for (const target of targetNodes) {
+    const targetCenter = {
+      x: target.bbox.x + target.bbox.width / 2,
+      y: target.bbox.y + target.bbox.height / 2
+    };
+    
+    const distance = Math.sqrt(
+      Math.pow(targetCenter.x - markerCenter.x, 2) +
+      Math.pow(targetCenter.y - markerCenter.y, 2)
+    );
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = target;
+    }
+  }
+  
+  return closest;
+}
+```
+
+### Step 5: Apply Native Annotations
+
+**Convert matched annotations using batch processing:**
+
+```typescript
+// Prepare annotations array
+const annotationsToApply = [];
+
+for (const marker of markers) {
+  // Match with description
+  const description = findMatchingDescription(marker, descriptions);
+  
+  if (!description) continue;
+  
+  // Find target using multiple strategies
+  const target = 
+    findTargetByPath(marker, targetNodes) ||
+    findTargetByName(description, targetNodes) ||
+    findTargetByProximity(marker, targetNodes);
+  
+  if (target) {
+    // Determine appropriate category
+    const category = determineCategory(description.characters, categories);
+    
+    // Determine properties based on content and target type
+    const properties = determineProperties(description.characters, target.type);
+    
+    annotationsToApply.push({
+      nodeId: target.id,
+      labelMarkdown: description.characters,
+      categoryId: category.id,
+      properties: properties
+    });
+  }
+}
+
+// Apply annotations in batches
+if (annotationsToApply.length > 0) {
+  await set_multiple_annotations({
+    nodeId: selectedNodeId,
+    annotations: annotationsToApply
+  });
+  
+  console.log(`Applied ${annotationsToApply.length} native annotations`);
+}
+```
+
+## Helper Functions
+
+### Determine Category
+
+```typescript
+function determineCategory(text: string, categories: any[]) {
+  const textLower = text.toLowerCase();
+  
+  // Check for keywords that suggest category
+  if (textLower.includes('interaction') || textLower.includes('click')) {
+    return categories.find(c => c.name.includes('Interaction'));
+  }
+  if (textLower.includes('content') || textLower.includes('text')) {
+    return categories.find(c => c.name.includes('Content'));
+  }
+  if (textLower.includes('style') || textLower.includes('color')) {
+    return categories.find(c => c.name.includes('Style'));
+  }
+  
+  // Default to first category or create general category
+  return categories[0] || { id: 'general', name: 'General' };
+}
+```
+
+### Determine Properties
+
+```typescript
+function determineProperties(text: string, targetType: string) {
+  const properties = [];
+  
+  // Add properties based on content and target type
+  if (targetType === 'INSTANCE' || targetType === 'COMPONENT') {
+    properties.push({ type: 'component-annotation' });
+  }
+  
+  if (text.includes('important') || text.includes('critical')) {
+    properties.push({ type: 'high-priority' });
+  }
+  
+  return properties;
+}
+```
+
+### Find Matching Description
+
+```typescript
+function findMatchingDescription(marker: any, descriptions: any[]) {
+  const markerValue = marker.characters;
+  
+  // Look for descriptions that start with the marker value
+  return descriptions.find(desc => {
+    const descText = desc.characters;
+    return descText.startsWith(markerValue + '.') ||
+           descText.startsWith(markerValue + ':') ||
+           descText.startsWith(markerValue + ')') ||
+           desc.name.includes(markerValue);
+  });
+}
+```
+
+## Complete Example
+
+```typescript
+async function convertAnnotations() {
+  // Step 1: Setup
+  const selection = await get_selection();
+  const nodeId = selection[0].id;
+  const annotationData = await get_annotations({ 
+    nodeId, 
+    includeCategories: true 
+  });
+  
+  // Step 2: Scan text nodes
+  const textNodes = await scan_text_nodes({ nodeId });
+  const markers = textNodes.filter(isAnnotationMarker);
+  const descriptions = textNodes.filter(isAnnotationDescription);
+  
+  // Step 3: Scan targets
+  const targets = await scan_nodes_by_types({ 
+    nodeId, 
+    types: ["COMPONENT", "INSTANCE", "FRAME"] 
+  });
+  
+  // Step 4: Match and prepare
+  const annotations = markers.map(marker => {
+    const description = findMatchingDescription(marker, descriptions);
+    const target = findTargetByPath(marker, targets.matchingNodes) ||
+                   findTargetByName(description, targets.matchingNodes) ||
+                   findTargetByProximity(marker, targets.matchingNodes);
+    
+    if (target && description) {
+      return {
+        nodeId: target.id,
+        labelMarkdown: description.characters,
+        categoryId: determineCategory(description.characters, 
+                                     annotationData.categories).id,
+        properties: determineProperties(description.characters, target.type)
+      };
+    }
+    return null;
+  }).filter(Boolean);
+  
+  // Step 5: Apply
+  await set_multiple_annotations({ nodeId, annotations });
+  
+  return `Converted ${annotations.length} annotations`;
+}
+```
+
+## Related Prompts
+
+- [Design Strategy](/api/prompts/design-strategy) - For understanding design structure
+- [Read Design Strategy](/api/prompts/read-design-strategy) - For reading existing designs
+
+## Related Tools
+
+- [get_annotations](/api/annotations/get-annotations)
+- [set_annotation](/api/annotations/set-annotation)
+- [set_multiple_annotations](/api/annotations/set-multiple-annotations)
+- [scan_text_nodes](/api/scanning/scan-text-nodes)
+- [scan_nodes_by_types](/api/scanning/scan-nodes-by-types)

@@ -1,0 +1,147 @@
+---
+title: delete_multiple_nodes
+description: Delete multiple nodes from Figma at once
+---
+
+Permanently remove multiple nodes from the Figma document in a single operation. This is significantly more efficient than calling `delete_node` repeatedly.
+
+## Parameters
+
+<ParamField path="nodeIds" type="string[]" required>
+  Array of node IDs to delete
+</ParamField>
+
+## Response
+
+Returns a result object with details about the deletion operation.
+
+```json
+{
+  "success": true,
+  "deletedCount": 25,
+  "failedCount": 0,
+  "results": [
+    {
+      "nodeId": "123:456",
+      "success": true
+    }
+  ]
+}
+```
+
+## Examples
+
+### Delete multiple specific nodes
+
+```typescript
+await delete_multiple_nodes({
+  nodeIds: ["123:456", "789:012", "345:678"]
+});
+```
+
+### Delete all text nodes in a frame
+
+```typescript
+const textNodes = await scan_text_nodes({ nodeId: "parent-frame-id" });
+const nodeIds = textNodes.map(node => node.id);
+
+await delete_multiple_nodes({ nodeIds });
+```
+
+### Cleanup by node type
+
+```typescript
+const nodes = await scan_nodes_by_types({
+  nodeId: "parent-frame-id",
+  types: ["RECTANGLE", "ELLIPSE"]
+});
+
+const nodeIds = nodes.matchingNodes.map(node => node.id);
+await delete_multiple_nodes({ nodeIds });
+```
+
+### Delete nodes matching a condition
+
+```typescript
+// Get all nodes and filter
+const allNodes = await get_nodes_info({ nodeIds: nodeIdArray });
+
+// Delete nodes smaller than 10x10 pixels
+const smallNodeIds = allNodes
+  .filter(node => {
+    const bbox = node.absoluteBoundingBox;
+    return bbox.width < 10 && bbox.height < 10;
+  })
+  .map(node => node.id);
+
+await delete_multiple_nodes({ nodeIds: smallNodeIds });
+```
+
+### Batch delete with progress tracking
+
+```typescript
+const allNodeIds = [...]; // Array of 1000+ node IDs
+const batchSize = 100;
+
+for (let i = 0; i < allNodeIds.length; i += batchSize) {
+  const batch = allNodeIds.slice(i, i + batchSize);
+  const result = await delete_multiple_nodes({ nodeIds: batch });
+  
+  console.log(`Deleted ${result.deletedCount} of ${batch.length} nodes`);
+}
+```
+
+## Batch Deletion Benefits
+
+### Performance
+
+`delete_multiple_nodes` is optimized for bulk operations:
+
+- **Single round-trip**: One WebSocket message instead of N separate calls
+- **Atomic operation**: All deletions processed together in Figma's plugin context
+- **Reduced overhead**: Eliminates per-request latency and validation overhead
+- **Progress tracking**: Built-in chunking for large deletion sets (100+ nodes)
+
+### Efficiency Comparison
+
+```typescript
+// ❌ Slow: 100 separate API calls
+for (const nodeId of nodeIds) {
+  await delete_node({ nodeId });
+}
+// ~10-15 seconds for 100 nodes
+
+// ✅ Fast: Single batch operation
+await delete_multiple_nodes({ nodeIds });
+// ~1-2 seconds for 100 nodes
+```
+
+### Error Handling
+
+Batch deletion continues even if individual nodes fail:
+
+```typescript
+const result = await delete_multiple_nodes({
+  nodeIds: ["valid-id", "invalid-id", "locked-id"]
+});
+
+if (result.failedCount > 0) {
+  const failed = result.results.filter(r => !r.success);
+  console.log("Failed deletions:", failed);
+}
+```
+
+## Notes
+
+- Deletion is permanent and cannot be undone via the API
+- The operation continues even if some nodes fail to delete
+- Results include success/failure status for each node
+- For very large deletions (1000+ nodes), consider batching into groups of 100-200
+- Locked nodes and protected frames will fail to delete but won't stop the operation
+- Performance scales logarithmically rather than linearly with node count
+
+## See Also
+
+- [`delete_node`](/api/layout-organization/delete-node) - Delete a single node
+- [`scan_nodes_by_types`](/api/scanning/scan-nodes-by-types) - Find nodes by type to delete
+- [`scan_text_nodes`](/api/scanning/scan-text-nodes) - Find text nodes to delete

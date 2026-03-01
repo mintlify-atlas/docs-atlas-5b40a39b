@@ -1,0 +1,116 @@
+---
+title: clone_node
+description: Clone an existing node in Figma
+---
+
+Create a duplicate of a node, optionally positioning it at specific coordinates. The cloned node preserves all properties of the original including styles, fills, strokes, and children.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the node to clone
+</ParamField>
+
+<ParamField path="x" type="number">
+  New X position for the clone. If omitted, the clone will be offset from the original position.
+</ParamField>
+
+<ParamField path="y" type="number">
+  New Y position for the clone. If omitted, the clone will be offset from the original position.
+</ParamField>
+
+## Response
+
+Returns the name and ID of the cloned node, along with its position if specified.
+
+```json
+{
+  "name": "Button Copy",
+  "id": "234:567"
+}
+```
+
+## Examples
+
+### Clone a button without positioning
+
+```typescript
+const result = await clone_node({
+  nodeId: "123:456"
+});
+// Clone appears near the original with automatic offset
+console.log(result.id); // Use this ID to modify the clone
+```
+
+### Clone and position a card
+
+```typescript
+await clone_node({
+  nodeId: "123:456",
+  x: 400,
+  y: 200
+});
+```
+
+### Create a grid of cloned elements
+
+```typescript
+const spacing = 120;
+const columns = 4;
+const rows = 3;
+
+for (let row = 0; row < rows; row++) {
+  for (let col = 0; col < columns; col++) {
+    await clone_node({
+      nodeId: "123:456",
+      x: col * spacing,
+      y: row * spacing
+    });
+  }
+}
+```
+
+### Clone and offset by a specific amount
+
+```typescript
+// Get original position
+const nodeInfo = await get_node_info({ nodeId: "123:456" });
+const originalX = nodeInfo.absoluteBoundingBox.x;
+const originalY = nodeInfo.absoluteBoundingBox.y;
+
+// Clone 50px to the right and 50px down
+await clone_node({
+  nodeId: "123:456",
+  x: originalX + 50,
+  y: originalY + 50
+});
+```
+
+### Clone multiple times for variations
+
+```typescript
+// Clone and modify each for different states
+const states = ["default", "hover", "active", "disabled"];
+const clones = [];
+
+for (let i = 0; i < states.length; i++) {
+  const clone = await clone_node({
+    nodeId: "123:456",
+    x: i * 200,
+    y: 0
+  });
+  clones.push(clone.id);
+  
+  // Modify clone for each state
+  // ...
+}
+```
+
+## Notes
+
+- The cloned node is an exact duplicate with all properties preserved
+- If `x` and `y` are not provided, Figma automatically offsets the clone
+- Clone includes all children if the node is a frame or group
+- Component instances remain linked to their main component when cloned
+- Use the returned ID to further modify the cloned node
+- Cloning complex nodes with many children may take longer

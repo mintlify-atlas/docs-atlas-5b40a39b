@@ -1,0 +1,118 @@
+---
+title: 'Bulk text content replacement'
+description: 'Efficiently replace text content across multiple text nodes in your Figma designs using AI automation.'
+keywords: ['text replacement', 'bulk update', 'automation', 'batch operation']
+icon: 'text'
+---
+
+## Overview
+
+Bulk text content replacement allows you to update text content across multiple text nodes in your Figma designs with a single command. This feature dramatically reduces repetitive design work when localizing content, updating copy, or applying text changes across large designs.
+
+<Note>
+This feature was contributed by [@dusskapark](https://github.com/dusskapark). Watch the [demo video](https://www.youtube.com/watch?v=j05gGT3xfCs) to see it in action.
+</Note>
+
+## Use cases
+
+- **Localization**: Translate text content across entire designs or components
+- **Copy updates**: Apply content changes from writers or product managers
+- **A/B testing**: Create variations with different messaging
+- **Data population**: Fill designs with real content from spreadsheets or databases
+- **Placeholder replacement**: Replace lorem ipsum with actual copy
+
+## Workflow
+
+<Steps>
+  <Step title="Scan text nodes">
+    Use `scan_text_nodes` to discover all text nodes in your design. This tool intelligently chunks large designs to prevent UI freezing.
+
+    ```javascript
+    scan_text_nodes({
+      chunkSize: 50,
+      delayMs: 100
+    })
+    ```
+
+    The scan returns an array of text nodes with their IDs, content, and properties.
+  </Step>
+
+  <Step title="Prepare replacement data">
+    Map the text nodes you want to update with their new content. You can use the node IDs from the scan results.
+
+    ```javascript
+    const updates = [
+      { nodeId: "123:456", newText: "Welcome to our platform" },
+      { nodeId: "123:457", newText: "Get started in minutes" },
+      { nodeId: "123:458", newText: "No credit card required" }
+    ];
+    ```
+  </Step>
+
+  <Step title="Apply batch updates">
+    Use `set_multiple_text_contents` to apply all changes in a single operation.
+
+    ```javascript
+    set_multiple_text_contents({
+      updates: updates
+    })
+    ```
+
+    This batch operation is much faster than updating nodes one by one and provides progress updates.
+  </Step>
+
+  <Step title="Verify changes">
+    Check the updated nodes using `get_nodes_info` or visually inspect them in Figma.
+
+    ```javascript
+    get_nodes_info({
+      nodeIds: ["123:456", "123:457", "123:458"]
+    })
+    ```
+  </Step>
+</Steps>
+
+## Best practices
+
+<Tip>
+For large designs with 100+ text nodes, use the chunking parameters in `scan_text_nodes` to prevent Figma from freezing. Monitor progress through WebSocket updates.
+</Tip>
+
+- **Use batch operations**: Always prefer `set_multiple_text_contents` over repeated `set_text_content` calls for better performance
+- **Handle structural relationships**: Consider parent-child relationships between text nodes when planning updates
+- **Verify before applying**: Review the scan results before making changes to ensure you're targeting the correct nodes
+- **Preserve formatting**: The tools preserve existing text styles and formatting properties
+- **Monitor progress**: Large batch operations provide progress updates via WebSocket
+
+## Tool sequence
+
+1. `join_channel` - Connect to Figma
+2. `get_document_info` - Understand the design structure
+3. `scan_text_nodes` - Find all text nodes with chunking
+4. `set_multiple_text_contents` - Apply updates in batch
+5. `get_nodes_info` - Verify the changes
+
+## Demo video
+
+Watch [@dusskapark](https://github.com/dusskapark)'s demonstration of bulk text replacement in action:
+
+<iframe
+  width="560"
+  height="315"
+  src="https://www.youtube.com/embed/j05gGT3xfCs"
+  title="Bulk text replacement demo"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen
+></iframe>
+
+## Related tools
+
+- [`scan_text_nodes`](/api-reference/tools/scan-text-nodes) - Scan text nodes with intelligent chunking
+- [`set_text_content`](/api-reference/tools/set-text-content) - Update a single text node
+- [`set_multiple_text_contents`](/api-reference/tools/set-multiple-text-contents) - Batch update multiple text nodes
+- [`get_nodes_info`](/api-reference/tools/get-nodes-info) - Get detailed information about multiple nodes
+
+## Related prompts
+
+- [`text_replacement_strategy`](/api-reference/prompts/text-replacement-strategy) - Systematic approach for replacing text in Figma designs

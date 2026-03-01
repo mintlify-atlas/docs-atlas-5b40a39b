@@ -1,0 +1,330 @@
+---
+title: "set_multiple_annotations"
+description: "Batch create or update multiple annotations in parallel"
+---
+
+Applies multiple annotations to different nodes in a single operation. This tool processes annotations in batches of 5 for optimal performance, making it ideal for annotating complex designs with many elements.
+
+## Parameters
+
+<ParamField path="nodeId" type="string" required>
+  The ID of the parent node containing all elements to be annotated. Used for scoping the batch operation.
+</ParamField>
+
+<ParamField path="annotations" type="array" required>
+  Array of annotation objects to apply. Each annotation object contains:
+  
+  <Expandable title="Annotation object properties">
+    <ResponseField name="nodeId" type="string" required>
+      The ID of the specific node to annotate
+    </ResponseField>
+    
+    <ResponseField name="labelMarkdown" type="string" required>
+      The annotation text in markdown format (supports **bold**, *italic*, links, lists, code, etc.)
+    </ResponseField>
+    
+    <ResponseField name="categoryId" type="string">
+      Optional annotation category ID
+    </ResponseField>
+    
+    <ResponseField name="annotationId" type="string">
+      Optional ID of existing annotation to update (omit for new annotations)
+    </ResponseField>
+    
+    <ResponseField name="properties" type="array">
+      Optional array of property objects, each with a `type` field
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+Returns a detailed result object:
+
+```typescript
+{
+  success: boolean,
+  nodeId: string,
+  annotationsApplied: number,
+  annotationsFailed: number,
+  totalAnnotations: number,
+  completedInChunks: number,
+  results: Array<{
+    success: boolean,
+    nodeId: string,
+    annotationId?: string,
+    error?: string
+  }>
+}
+```
+
+## Usage
+
+<CodeGroup>
+```typescript Basic batch annotation
+const result = await set_multiple_annotations({
+  nodeId: "parent-frame-id",
+  annotations: [
+    {
+      nodeId: "button-1",
+      labelMarkdown: "**Primary CTA**: Main action button"
+    },
+    {
+      nodeId: "button-2",
+      labelMarkdown: "**Secondary action**: Cancel flow"
+    },
+    {
+      nodeId: "input-1",
+      labelMarkdown: "**Email input**: Required field, validates format"
+    }
+  ]
+});
+
+console.log(`${result.annotationsApplied} of ${result.totalAnnotations} applied`);
+```
+
+```typescript With categories and properties
+const result = await set_multiple_annotations({
+  nodeId: frameId,
+  annotations: [
+    {
+      nodeId: "component-1",
+      labelMarkdown: "**Header Component**",
+      categoryId: "design-spec",
+      properties: [{ type: "component" }]
+    },
+    {
+      nodeId: "component-2",
+      labelMarkdown: "**Footer Component**",
+      categoryId: "design-spec",
+      properties: [{ type: "component" }]
+    }
+  ]
+});
+```
+</CodeGroup>
+
+## Batch Processing
+
+The tool automatically processes annotations in **batches of 5** to prevent Figma UI freezing. Progress updates are provided during processing:
+
+```
+Starting annotation process for 23 nodes. This will be processed in batches of 5...
+
+Annotation process completed:
+- 21 of 23 successfully applied
+- 2 failed
+- Processed in 5 batches
+
+Nodes that failed:
+- 123:456: Node not found
+- 789:012: Invalid markdown format
+```
+
+## Complete Annotation Workflow
+
+Typical workflow for annotating a complex design:
+
+### 1. Scan for annotation targets
+
+First, identify all elements that need annotations:
+
+```typescript
+// Get parent frame
+const selection = await get_selection();
+const parentFrameId = selection[0].id;
+
+// Find all components and key frames
+const targets = await scan_nodes_by_types({
+  nodeId: parentFrameId,
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+
+console.log(`Found ${targets.count} potential annotation targets`);
+```
+
+### 2. Get available categories
+
+Retrieve annotation categories for consistent organization:
+
+```typescript
+const { categories } = await get_annotations({
+  nodeId: parentFrameId,
+  includeCategories: true
+});
+
+// Find specific categories
+const designCategory = categories.find(c => c.name === "Design");
+const devCategory = categories.find(c => c.name === "Development");
+```
+
+### 3. Build annotation array
+
+Map targets to annotations with appropriate content:
+
+```typescript
+const annotations = targets.matchingNodes.map(node => {
+  // Determine category based on node type
+  const categoryId = node.type === "COMPONENT" 
+    ? designCategory.id 
+    : devCategory.id;
+  
+  // Generate annotation text based on node name and type
+  const labelMarkdown = `**${node.name}**\n\nType: ${node.type}\nSize: ${node.bbox.width}×${node.bbox.height}px`;
+  
+  return {
+    nodeId: node.id,
+    labelMarkdown,
+    categoryId
+  };
+});
+```
+
+### 4. Apply batch annotations
+
+Apply all annotations in one operation:
+
+```typescript
+const result = await set_multiple_annotations({
+  nodeId: parentFrameId,
+  annotations
+});
+
+console.log(`Applied ${result.annotationsApplied} annotations in ${result.completedInChunks} batches`);
+
+if (result.annotationsFailed > 0) {
+  console.error("Failed annotations:", result.results.filter(r => !r.success));
+}
+```
+
+## Converting Manual Annotations
+
+Common use case: converting numbered/lettered annotation markers to native Figma annotations.
+
+### Scan text nodes for markers
+
+```typescript
+// Get all text nodes (potential annotation markers and descriptions)
+const textNodes = await scan_text_nodes({ nodeId: frameId });
+
+// Filter for annotation markers (short text like "1", "2", "A", "B")
+const markers = textNodes.filter(node => 
+  node.characters.length <= 2 && 
+  /^[0-9A-Za-z]$/.test(node.characters)
+);
+
+// Filter for descriptions (longer text near markers)
+const descriptions = textNodes.filter(node => 
+  node.characters.length > 10
+);
+```
+
+### Match markers to UI elements
+
+```typescript
+// Get UI elements that are annotation targets
+const uiElements = await scan_nodes_by_types({
+  nodeId: frameId,
+  types: ["COMPONENT", "INSTANCE", "FRAME"]
+});
+
+// Match by proximity (find closest UI element to each marker)
+const annotations = markers.map(marker => {
+  // Find corresponding description
+  const description = descriptions.find(d => 
+    d.name.includes(marker.characters) || 
+    isNear(d.bbox, marker.bbox)
+  );
+  
+  // Find closest UI element
+  const target = findClosestElement(marker.bbox, uiElements.matchingNodes);
+  
+  return {
+    nodeId: target.id,
+    labelMarkdown: description?.characters || `Annotation ${marker.characters}`
+  };
+});
+```
+
+### Apply converted annotations
+
+```typescript
+const result = await set_multiple_annotations({
+  nodeId: frameId,
+  annotations
+});
+
+console.log(`Converted ${annotations.length} manual annotations to native annotations`);
+```
+
+## Performance Considerations
+
+- **Batch size**: Fixed at 5 annotations per batch for optimal performance
+- **Large operations**: Annotating 50+ nodes will take time; progress updates keep you informed
+- **Verification**: Check `results` array for any failed annotations
+- **Retry logic**: Failed annotations can be retried individually with `set_annotation`
+
+## Use Cases
+
+### Design system documentation
+
+```typescript
+// Annotate all components with usage guidelines
+const components = await scan_nodes_by_types({
+  nodeId: designSystemPageId,
+  types: ["COMPONENT"]
+});
+
+const annotations = components.matchingNodes.map(comp => ({
+  nodeId: comp.id,
+  labelMarkdown: `**${comp.name}**\n\nSee [component docs](https://ds.example.com/${comp.name.toLowerCase()})`,
+  categoryId: "documentation"
+}));
+
+await set_multiple_annotations({ nodeId: designSystemPageId, annotations });
+```
+
+### Development handoff
+
+```typescript
+// Add implementation notes to all interactive elements
+const interactiveElements = await scan_nodes_by_types({
+  nodeId: screenId,
+  types: ["INSTANCE", "COMPONENT"]
+});
+
+const annotations = interactiveElements.matchingNodes
+  .filter(node => node.name.toLowerCase().includes('button'))
+  .map(btn => ({
+    nodeId: btn.id,
+    labelMarkdown: `**onClick**: Navigate to corresponding screen\n**State**: Supports loading, disabled`,
+    categoryId: devCategoryId
+  }));
+
+await set_multiple_annotations({ nodeId: screenId, annotations });
+```
+
+## Best Practices
+
+1. **Use scan tools first**: Always use `scan_nodes_by_types` to identify targets before batch annotating
+2. **Consistent categories**: Use the same category for related annotations
+3. **Rich markdown**: Leverage markdown for structured, readable annotations
+4. **Check results**: Always inspect the `results` array for failures
+5. **Logical grouping**: Keep annotations in the same batch if they're related
+
+## Related Tools
+
+<CardGroup cols={2}>
+  <Card title="get_annotations" icon="list" href="/api/annotations/get-annotations">
+    Retrieve existing annotations and categories
+  </Card>
+  <Card title="set_annotation" icon="pen" href="/api/annotations/set-annotation">
+    Create or update single annotation
+  </Card>
+  <Card title="scan_nodes_by_types" icon="magnifying-glass" href="/api/annotations/scan-nodes-by-types">
+    Find nodes to annotate
+  </Card>
+  <Card title="scan_text_nodes" icon="text" href="/api/scanning/scan-text-nodes">
+    Find text nodes (for converting manual annotations)
+  </Card>
+</CardGroup>
